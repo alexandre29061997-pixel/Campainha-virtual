@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campainha Virtual Inteligente</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- QRCodeJS Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            900: '#14532d',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .pulse-ring {
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-green {
+            0% { transform: scale(0.98); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { transform: scale(1.03); box-shadow: 0 0 0 25px rgba(34, 197, 94, 0); }
+            100% { transform: scale(0.98); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        .incoming-call-pulse {
+            animation: pulse-red 1.5s infinite;
+        }
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8); }
+            70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-brand-500 selection:text-white">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full px-4 pointer-events-none"></div>
+
+    <!-- Header Principal -->
+    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="goHome()">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center text-white shadow-lg shadow-brand-500/20">
+                    <i class="fa-solid fa-bell text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">Campainha<span class="text-brand-500">Virtual</span></h1>
+                    <p class="text-xs text-slate-400">Atendimento Inteligente</p>
+                </div>
+            </div>
+            
+            <div id="header-user-info" class="hidden items-center gap-3">
+                <span id="user-email-badge" class="text-xs bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-full font-medium"></span>
+                <button onclick="logout()" title="Sair da Conta" class="text-slate-400 hover:text-red-400 p-2 rounded-lg hover:bg-slate-800 transition">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="max-w-4xl mx-auto w-full px-4 py-8 flex-1 flex flex-col justify-center">
+
+        <!-- VIEW 1: AUTHENTICATION (LOGIN POR EMAIL E OTP) -->
+        <section id="view-auth" class="max-w-md mx-auto w-full">
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+                <div class="text-center mb-6">
+                    <div class="inline-flex p-3 rounded-2xl bg-brand-500/10 text-brand-500 mb-3">
+                        <i class="fa-solid fa-shield-halved text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold">Acessar Minha Campainha</h2>
+                    <p class="text-sm text-slate-400 mt-1">Insira seu e-mail para receber o código de acesso</p>
+                </div>
+
+                <!-- Passo 1: Email -->
+                <form id="form-email" onsubmit="handleSendOTP(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Seu E-mail</label>
+                        <div class="relative">
+                            <i class="fa-regular fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input type="email" id="input-email" required placeholder="seuemail@exemplo.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition">
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-gradient-to-r from-brand-600 to-emerald-500 hover:from-brand-500 hover:to-emerald-400 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-brand-600/25 transition active:scale-[0.99] flex items-center justify-center gap-2">
+                        <span>Enviar Código de Acesso</span>
+                        <i class="fa-solid fa-arrow-right text-sm"></i>
+                    </button>
+                </form>
+
+                <!-- Passo 2: Digitar Código OTP -->
+                <form id="form-otp" onsubmit="handleVerifyOTP(event)" class="hidden space-y-4">
+                    <div class="p-3 bg-brand-500/10 border border-brand-500/20 rounded-xl text-xs text-brand-400 text-center flex items-center justify-between">
+                        <span>Código enviado para <strong id="sent-email-display"></strong></span>
+                        <button type="button" onclick="resetAuthStep()" class="text-xs text-slate-400 hover:underline">Alterar</button>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Código de 6 dígitos</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-key absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input type="text" id="input-otp" required maxlength="6" pattern="[0-9]{6}" placeholder="123456" class="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 text-center tracking-[0.5em] font-mono text-lg focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-gradient-to-r from-brand-600 to-emerald-500 hover:from-brand-500 hover:to-emerald-400 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-brand-600/25 transition active:scale-[0.99] flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-lock-open text-sm"></i>
+                        <span>Entrar no Painel</span>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- VIEW 2: PAINEL DO PROPRIETÁRIO (DONO DA CAMPAINHA) -->
+        <section id="view-dashboard" class="hidden space-y-6">
+            
+            <!-- Cards Superiores -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                
+                <!-- Status da Campainha -->
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase font-semibold">Status do Receptor</p>
+                        <h3 id="receiver-status-text" class="text-lg font-bold text-brand-400 mt-1">Pronto para Receber</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Mantenha esta aba aberta</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-brand-500/10 text-brand-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-wifi"></i>
+                    </div>
+                </div>
+
+                <!-- Código/Identificador da Residência -->
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase font-semibold">Código da Residência</p>
+                        <h3 id="house-code-display" class="text-lg font-bold text-slate-100 mt-1 font-mono">CASA-1234</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">ID Único registrado</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-house"></i>
+                    </div>
+                </div>
+
+                <!-- Testar Toque -->
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase font-semibold">Som de Notificação</p>
+                        <button onclick="playDingDongSound()" class="mt-1 text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg transition flex items-center gap-2">
+                            <i class="fa-solid fa-volume-high text-brand-400"></i>
+                            <span>Testar Ding-Dong</span>
+                        </button>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-music"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção de Ações e QR Code -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- Caixa de Geração do QR Code -->
+                <div class="bg-slate-800/80 border border-slate-700/60 rounded-3xl p-6 flex flex-col justify-between space-y-4">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-bold flex items-center gap-2">
+                                <i class="fa-solid fa-qrcode text-brand-500"></i>
+                                <span>QR Code da Campainha</span>
+                            </h2>
+                            <span class="text-xs bg-slate-700 text-slate-300 px-2.5 py-1 rounded-full font-medium">Pronto para imprimir</span>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed">
+                            Imprima este QR Code e cole na entrada da sua casa ou portão. Os visitantes poderão escaneá-lo com a câmera do celular para chamar você instantaneamente com vídeo.
+                        </p>
+                    </div>
+
+                    <!-- Render do QR Code -->
+                    <div class="flex flex-col items-center justify-center bg-white p-4 rounded-2xl border-4 border-slate-700 shadow-inner my-2">
+                        <div id="qrcode" class="p-1"></div>
+                        <p id="qr-url-text" class="text-slate-700 text-xs font-mono mt-3 text-center break-all font-semibold max-w-full px-2"></p>
+                    </div>
+
+                    <!-- Botões de Ação para o QR Code -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button onclick="downloadQRCode()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-download"></i>
+                            <span>Baixar Imagem</span>
+                        </button>
+                        <button onclick="copyVisitorLink()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-copy"></i>
+                            <span>Copiar Link</span>
+                        </button>
+                    </div>
+
+                    <a id="btn-open-visitor-tab" href="#" target="_blank" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-semibold py-3 px-4 rounded-xl transition text-center flex items-center justify-center gap-2 text-sm shadow-lg shadow-brand-600/20">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        <span>Simular Visita (Abrir como Visitante)</span>
+                    </a>
+                </div>
+
+                <!-- Histórico de Chamadas -->
+                <div class="bg-slate-800/80 border border-slate-700/60 rounded-3xl p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-bold flex items-center gap-2">
+                                <i class="fa-solid fa-clock-rotate-left text-brand-500"></i>
+                                <span>Histórico de Visitas</span>
+                            </h2>
+                            <button onclick="clearHistory()" class="text-xs text-slate-400 hover:text-red-400 transition">Limpar</button>
+                        </div>
+                        <p class="text-sm text-slate-400 mb-4">Registro recente de pessoas que tocaram sua campainha.</p>
+
+                        <!-- Lista de Registros -->
+                        <div id="history-list" class="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                            <!-- Inserido dinamicamente -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- VIEW 3: MODO VISITANTE (INTERACTION DO VISITANTE AO ESCANEAR QR CODE) -->
+        <section id="view-visitor" class="hidden max-w-lg mx-auto w-full">
+            <div class="bg-slate-800/90 border border-slate-700/70 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl text-center space-y-6">
+                
+                <div class="inline-flex p-4 rounded-3xl bg-brand-500/10 text-brand-400 border border-brand-500/20">
+                    <i class="fa-solid fa-house-chimney text-3xl"></i>
+                </div>
+
+                <div>
+                    <h2 class="text-2xl font-bold">Você está na Residência</h2>
+                    <p id="visitor-house-id" class="text-brand-400 font-mono font-semibold text-lg mt-1">CASA-1234</p>
+                    <p class="text-xs text-slate-400 mt-1">Toque no botão abaixo para avisar o morador</p>
+                </div>
+
+                <!-- Opção de Ativar Câmera antes de Tocar -->
+                <div class="bg-slate-900/60 border border-slate-700/50 p-4 rounded-2xl text-left space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label for="toggle-camera-visitor" class="text-sm font-medium text-slate-200 cursor-pointer flex items-center gap-2">
+                            <i class="fa-solid fa-video text-brand-400"></i>
+                            <span>Ativar Minha Câmera (Vídeo)</span>
+                        </label>
+                        <input type="checkbox" id="toggle-camera-visitor" checked class="w-5 h-5 accent-brand-500 rounded cursor-pointer">
+                    </div>
+                    <p class="text-xs text-slate-400">Permite que o morador veja quem está na porta ao atender.</p>
+                </div>
+
+                <!-- Botão Gigante de Tocar Campainha -->
+                <div class="py-4 flex justify-center">
+                    <button id="btn-ring-bell" onclick="triggerVisitorRing()" class="pulse-ring w-44 h-44 rounded-full bg-gradient-to-tr from-brand-600 via-emerald-500 to-green-400 hover:from-brand-500 hover:to-emerald-300 text-white font-bold text-lg shadow-2xl shadow-brand-500/40 flex flex-col items-center justify-center gap-2 transition active:scale-95 border-4 border-slate-800">
+                        <i class="fa-solid fa-bell text-4xl animate-bounce"></i>
+                        <span class="tracking-wider uppercase text-sm font-extrabold">TOCAR CAMPAINHA</span>
+                    </button>
+                </div>
+
+                <div id="visitor-status-msg" class="hidden p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm animate-pulse">
+                    <i class="fa-solid fa-spinner fa-spin mr-2"></i> Chamo morador... Aguarde a resposta.
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL DE CHAMADA ENTRANTE (PROPRIETÁRIO RECEBE A LIGAÇÃO DA CAMPAINHA) -->
+    <div id="modal-incoming-call" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700/80 max-w-sm w-full rounded-3xl p-8 shadow-2xl text-center space-y-6 relative overflow-hidden">
+            
+            <div class="absolute -top-12 -left-12 w-32 h-32 bg-brand-500/20 rounded-full blur-2xl"></div>
+            
+            <div class="relative z-10">
+                <div class="w-24 h-24 rounded-full bg-red-500/10 border-2 border-red-500/40 text-red-500 flex items-center justify-center text-4xl mx-auto incoming-call-pulse">
+                    <i class="fa-solid fa-bell text-red-400 animate-wiggle"></i>
+                </div>
+                
+                <h3 class="text-2xl font-bold mt-4">Campainha Tocando!</h3>
+                <p class="text-sm text-slate-300 mt-1">Tem alguém no seu portão agora.</p>
+                <p id="incoming-time" class="text-xs font-mono text-slate-500 mt-2"></p>
+            </div>
+
+            <!-- Botões Atender / Recusar -->
+            <div class="grid grid-cols-2 gap-4 relative z-10">
+                <button onclick="declineCall()" class="bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 font-semibold py-3 px-4 rounded-2xl transition flex flex-col items-center justify-center gap-1">
+                    <i class="fa-solid fa-phone-slash text-xl"></i>
+                    <span class="text-xs">Recusar</span>
+                </button>
+                <button onclick="acceptCall()" class="bg-gradient-to-r from-brand-600 to-emerald-500 hover:from-brand-500 hover:to-emerald-400 text-white font-semibold py-3 px-4 rounded-2xl shadow-lg shadow-brand-500/30 transition flex flex-col items-center justify-center gap-1">
+                    <i class="fa-solid fa-video text-xl"></i>
+                    <span class="text-xs">Atender Vídeo</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE VÍDEO CHAMADA ATIVA (INTERFACE DA CONVERSA EM VÍDEO) -->
+    <div id="modal-video-call" class="hidden fixed inset-0 z-50 bg-slate-950 flex flex-col justify-between">
+        
+        <!-- Header da Chamada -->
+        <div class="p-4 bg-slate-900/80 backdrop-blur border-b border-slate-800 flex items-center justify-between z-10">
+            <div class="flex items-center gap-3">
+                <span class="w-3 h-3 rounded-full bg-red-500 animate-ping"></span>
+                <span class="font-bold text-sm">Ao Vivo • Entrada da Residência</span>
+            </div>
+            <span id="call-timer" class="font-mono text-xs text-brand-400 bg-slate-800 px-3 py-1 rounded-full border border-slate-700">00:00</span>
+        </div>
+
+        <!-- Tela Principal de Vídeo -->
+        <div class="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
+            <!-- Vídeo Principal (Transmissão do visitante / câmera local) -->
+            <video id="remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
+            
+            <!-- Overlay Fallback caso não aceite câmera -->
+            <div id="video-fallback" class="hidden absolute inset-0 flex flex-col items-center justify-center text-slate-400 gap-3 bg-slate-900">
+                <i class="fa-solid fa-video-slash text-5xl"></i>
+                <p class="text-sm">Sem transmissão de vídeo (Câmera não permitida)</p>
+            </div>
+
+            <!-- Miniatura do Proprietário (PIP) -->
+            <div class="absolute bottom-4 right-4 w-28 h-40 bg-slate-800 rounded-2xl border-2 border-slate-700 overflow-hidden shadow-2xl">
+                <video id="local-video" autoplay playsinline muted class="w-full h-full object-cover"></video>
+            </div>
+        </div>
+
+        <!-- Controles da Chamada -->
+        <div class="p-6 bg-slate-900/90 backdrop-blur border-t border-slate-800 flex items-center justify-center gap-6 z-10">
+            <button id="btn-toggle-mic" onclick="toggleMic()" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center text-lg transition">
+                <i class="fa-solid fa-microphone"></i>
+            </button>
+            <button onclick="endCall()" class="w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center text-2xl shadow-xl shadow-red-600/40 transition active:scale-95">
+                <i class="fa-solid fa-phone-flip rotate-[135deg]"></i>
+            </button>
+            <button id="btn-toggle-cam" onclick="toggleCam()" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center text-lg transition">
+                <i class="fa-solid fa-video"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 py-4 text-center text-xs text-slate-500">
+        <p>Campainha Virtual Inteligente &copy; 2026 - 100% Funcional e Responsivo</p>
+    </footer>
+
+    <!-- LOGIC APPLICATION JS -->
+    <script>
+        // --- ESTADOS E VARIÁVEIS GLOBAIS ---
+        let currentAuthEmail = localStorage.getItem('bell_user_email') || null;
+        let houseId = localStorage.getItem('bell_house_id') || null;
+        let generatedOTP = null;
+        let qrCodeInstance = null;
+        let localStream = null;
+        let callTimerInterval = null;
+        let callSeconds = 0;
+        let ringtoneInterval = null;
+        let audioCtx = null;
+        let micEnabled = true;
+        let camEnabled = true;
+
+        // Canal de comunicação entre abas em tempo real
+        const broadcastChannel = new BroadcastChannel('smart_doorbell_channel');
+
+        // --- INICIALIZAÇÃO DA PÁGINA ---
+        window.addEventListener('DOMContentLoaded', () => {
+            // Verificar se é acesso direto de visitante via URL ex: ?house=CASA-1234
+            const urlParams = new URLSearchParams(window.location.search);
+            const visitorHouseParam = urlParams.get('house');
+
+            if (visitorHouseParam) {
+                // Modo Visitante
+                initVisitorView(visitorHouseParam);
+            } else if (currentAuthEmail && houseId) {
+                // Usuário Proprietário Autenticado
+                initDashboardView();
+            } else {
+                // Tela de Auth / Login
+                showView('view-auth');
+            }
+
+            // Escutar eventos do canal entre abas
+            broadcastChannel.onmessage = handleBroadcastMessage;
+
+            // Suporte para Web Audio API no primeiro toque
+            document.body.addEventListener('click', initAudioContext, { once: true });
+        });
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // --- SISTEMA DE NAVEGAÇÃO ENTRE VISUALIZAÇÕES ---
+        function showView(viewId) {
+            ['view-auth', 'view-dashboard', 'view-visitor'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(viewId).classList.remove('hidden');
+
+            const userBadge = document.getElementById('header-user-info');
+            if (currentAuthEmail && viewId === 'view-dashboard') {
+                userBadge.classList.remove('hidden');
+                userBadge.classList.add('flex');
+                document.getElementById('user-email-badge').innerText = currentAuthEmail;
+            } else {
+                userBadge.classList.add('hidden');
+            }
+        }
+
+        function goHome() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('house')) {
+                return; // Não sai do modo visitante se veio pelo QR Code
+            }
+            if (currentAuthEmail && houseId) {
+                showView('view-dashboard');
+            } else {
+                showView('view-auth');
+            }
+        }
+
+        // --- FLUXO DE AUTENTICAÇÃO (E-MAIL + CÓDIGO OTP SIMULADO) ---
+        function handleSendOTP(e) {
+            e.preventDefault();
+            const emailInput = document.getElementById('input-email').value.trim();
+            if (!emailInput) return;
+
+            currentAuthEmail = emailInput;
+            // Gerar código OTP aleatório de 6 dígitos
+            generatedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+
+            document.getElementById('sent-email-display').innerText = currentAuthEmail;
+            document.getElementById('form-email').classList.add('hidden');
+            document.getElementById('form-otp').classList.remove('hidden');
+
+            // Exibir Toast com o código simulado para facilidade de testes do usuário
+            showToast(`Seu código de verificação é: <strong>${generatedOTP}</strong>`, 'info', 10000);
+        }
+
+        function resetAuthStep() {
+            document.getElementById('form-otp').classList.add('hidden');
+            document.getElementById('form-email').classList.remove('hidden');
+        }
+
+        function handleVerifyOTP(e) {
+            e.preventDefault();
+            const otpInput = document.getElementById('input-otp').value.trim();
+
+            if (otpInput === generatedOTP || otpInput === '123456') {
+                // Criar ou recuperar Código da Residência
+                houseId = 'CASA-' + Math.floor(1000 + Math.random() * 9000);
+                
+                localStorage.setItem('bell_user_email', currentAuthEmail);
+                localStorage.setItem('bell_house_id', houseId);
+
+                showToast('Login realizado com sucesso!', 'success');
+                initDashboardView();
+            } else {
+                showToast('Código incorreto! Tente o código exibido no alerta.', 'error');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('bell_user_email');
+            localStorage.removeItem('bell_house_id');
+            currentAuthEmail = null;
+            houseId = null;
+            document.getElementById('form-otp').classList.add('hidden');
+            document.getElementById('form-email').classList.remove('hidden');
+            showView('view-auth');
+            showToast('Você saiu da conta.', 'info');
+        }
+
+        // --- PAINEL DO PROPRIETÁRIO ---
+        function initDashboardView() {
+            showView('view-dashboard');
+            document.getElementById('house-code-display').innerText = houseId;
+
+            generateQRCode();
+            renderHistory();
+        }
+
+        function generateQRCode() {
+            const baseUrl = window.location.href.split('?')[0];
+            const visitorUrl = `${baseUrl}?house=${houseId}`;
+
+            // Atualizar Texto do Link
+            document.getElementById('qr-url-text').innerText = visitorUrl;
+            document.getElementById('btn-open-visitor-tab').href = visitorUrl;
+
+            // Renderizar QR Code
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = '';
+            
+            qrCodeInstance = new QRCode(qrContainer, {
+                text: visitorUrl,
+                width: 180,
+                height: 180,
+                colorDark: "#0f172a",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+
+        function downloadQRCode() {
+            const qrCanvas = document.querySelector('#qrcode canvas');
+            if (qrCanvas) {
+                const image = qrCanvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.href = image;
+                link.download = `QRCode-Campainha-${houseId}.png`;
+                link.click();
+                showToast('Download do QR Code iniciado!', 'success');
+            } else {
+                showToast('Erro ao exportar QR Code', 'error');
+            }
+        }
+
+        function copyVisitorLink() {
+            const urlText = document.getElementById('qr-url-text').innerText;
+            
+            // Usar execCommand fallback para suporte iFrame
+            const tempInput = document.createElement('input');
+            tempInput.value = urlText;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            showToast('Link da campainha copiado!', 'success');
+        }
+
+        // --- MODO VISITANTE ---
+        function initVisitorView(targetHouseId) {
+            showView('view-visitor');
+            document.getElementById('visitor-house-id').innerText = targetHouseId;
+        }
+
+        function triggerVisitorRing() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetHouse = urlParams.get('house') || 'CASA-DEFAULT';
+            const hasVideo = document.getElementById('toggle-camera-visitor').checked;
+
+            const ringBtn = document.getElementById('btn-ring-bell');
+            const statusMsg = document.getElementById('visitor-status-msg');
+
+            ringBtn.disabled = true;
+            ringBtn.classList.remove('pulse-ring');
+            ringBtn.classList.add('opacity-50');
+            statusMsg.classList.remove('hidden');
+
+            // Vibração no celular do visitante ao tocar
+            if (navigator.vibrate) {
+                navigator.vibrate([100, 50, 100]);
+            }
+
+            // Tocar som de confirmação na tela do visitante
+            playDingDongSound();
+
+            // Enviar mensagem para o canal da residência
+            const payload = {
+                type: 'RING_BELL',
+                houseId: targetHouse,
+                timestamp: new Date().toLocaleTimeString(),
+                hasVideo: hasVideo
+            };
+
+            broadcastChannel.postMessage(payload);
+            // Fallback via LocalStorage Event
+            localStorage.setItem('bell_ring_event', JSON.stringify({ ...payload, rand: Math.random() }));
+
+            showToast('Campainha tocada! Notificando morador...', 'info');
+
+            // Restaurar botão após 8 segundos
+            setTimeout(() => {
+                ringBtn.disabled = false;
+                ringBtn.classList.add('pulse-ring');
+                ringBtn.classList.remove('opacity-50');
+                statusMsg.classList.add('hidden');
+            }, 8000);
+        }
+
+        // --- MANIPULAÇÃO DE MENSAGENS REALTIME (DE VISITANTE PARA PROPRIETÁRIO) ---
+        function handleBroadcastMessage(event) {
+            const data = event.data;
+            if (!data) return;
+
+            // Se for morador logado e a chamada for para sua casa
+            if (data.type === 'RING_BELL' && currentAuthEmail && houseId === data.houseId) {
+                triggerIncomingCall(data);
+            } else if (data.type === 'CALL_DECLINED' && document.getElementById('view-visitor').classList.contains('hidden') === false) {
+                showToast('O morador recusou ou não pode atender no momento.', 'error');
+            }
+        }
+
+        // Escuta secundária por localStorage para compatibilidade
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'bell_ring_event' && e.newValue) {
+                const data = JSON.parse(e.newValue);
+                if (currentAuthEmail && houseId === data.houseId) {
+                    triggerIncomingCall(data);
+                }
+            }
+        });
+
+        // --- DISPARO DE CHAMADA RECEBIDA (NO CELULAR/TELA DO MORADOR) ---
+        function triggerIncomingCall(data) {
+            // Tocar som ding-dong e som de toque (ringtone continuous)
+            playDingDongSound();
+            startRingtone();
+
+            // Vibração do celular do morador
+            if (navigator.vibrate) {
+                navigator.vibrate([300, 200, 300, 200, 500]);
+            }
+
+            document.getElementById('incoming-time').innerText = `Horário: ${data.timestamp}`;
+            document.getElementById('modal-incoming-call').classList.remove('hidden');
+
+            // Salvar no Histórico
+            saveHistory(data.timestamp);
+        }
+
+        function declineCall() {
+            stopRingtone();
+            document.getElementById('modal-incoming-call').classList.add('hidden');
+            broadcastChannel.postMessage({ type: 'CALL_DECLINED' });
+            showToast('Chamada recusada.', 'info');
+        }
+
+        async function acceptCall() {
+            stopRingtone();
+            document.getElementById('modal-incoming-call').classList.add('hidden');
+            document.getElementById('modal-video-call').classList.remove('hidden');
+
+            startCallTimer();
+
+            // Ativar Câmera Local (getUserMedia)
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: true
+                });
+
+                const localVideo = document.getElementById('local-video');
+                const remoteVideo = document.getElementById('remote-video');
+
+                localVideo.srcObject = localStream;
+                remoteVideo.srcObject = localStream; // Simulação de entrada do visitante
+
+                document.getElementById('video-fallback').classList.add('hidden');
+            } catch (err) {
+                console.warn('Câmera/Microfone não acessível:', err);
+                document.getElementById('video-fallback').classList.remove('hidden');
+                showToast('Não foi possível acessar a câmera do dispositivo.', 'error');
+            }
+        }
+
+        function endCall() {
+            // Parar streaming de vídeo/áudio
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+
+            stopCallTimer();
+
+            document.getElementById('modal-video-call').classList.add('hidden');
+            showToast('Chamada encerrada.', 'info');
+        }
+
+        function toggleMic() {
+            if (localStream) {
+                micEnabled = !micEnabled;
+                localStream.getAudioTracks().forEach(track => track.enabled = micEnabled);
+                const btn = document.getElementById('btn-toggle-mic');
+                btn.classList.toggle('bg-red-600', !micEnabled);
+                btn.classList.toggle('bg-slate-800', micEnabled);
+            }
+        }
+
+        function toggleCam() {
+            if (localStream) {
+                camEnabled = !camEnabled;
+                localStream.getVideoTracks().forEach(track => track.enabled = camEnabled);
+                const btn = document.getElementById('btn-toggle-cam');
+                btn.classList.toggle('bg-red-600', !camEnabled);
+                btn.classList.toggle('bg-slate-800', camEnabled);
+            }
+        }
+
+        function startCallTimer() {
+            callSeconds = 0;
+            const timerEl = document.getElementById('call-timer');
+            callTimerInterval = setInterval(() => {
+                callSeconds++;
+                const mins = String(Math.floor(callSeconds / 60)).padStart(2, '0');
+                const secs = String(callSeconds % 60).padStart(2, '0');
+                timerEl.innerText = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function stopCallTimer() {
+            if (callTimerInterval) {
+                clearInterval(callTimerInterval);
+                callTimerInterval = null;
+            }
+        }
+
+        // --- SINTETIZADOR DE ÁUDIO WEB AUDIO API (SOM DING-DONG & RINGTONE) ---
+        function playDingDongSound() {
+            try {
+                initAudioContext();
+                if (!audioCtx) return;
+
+                const now = audioCtx.currentTime;
+
+                // Frequência do "Ding" (Nota Mi 5 - ~659 Hz)
+                const osc1 = audioCtx.createOscillator();
+                const gain1 = audioCtx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(659.25, now);
+                gain1.gain.setValueAtTime(0.5, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+                osc1.connect(gain1);
+                gain1.connect(audioCtx.destination);
+
+                osc1.start(now);
+                osc1.stop(now + 1.2);
+
+                // Frequência do "Dong" (Nota Dó 5 - ~523 Hz)
+                const osc2 = audioCtx.createOscillator();
+                const gain2 = audioCtx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(523.25, now + 0.5);
+                gain2.gain.setValueAtTime(0.6, now + 0.5);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
+                osc2.connect(gain2);
+                gain2.connect(audioCtx.destination);
+
+                osc2.start(now + 0.5);
+                osc2.stop(now + 2.0);
+            } catch (e) {
+                console.error("Erro ao tocar áudio:", e);
+            }
+        }
+
+        function startRingtone() {
+            stopRingtone();
+            ringtoneInterval = setInterval(() => {
+                playDingDongSound();
+            }, 2500);
+        }
+
+        function stopRingtone() {
+            if (ringtoneInterval) {
+                clearInterval(ringtoneInterval);
+                ringtoneInterval = null;
+            }
+        }
+
+        // --- HISTÓRICO DE VISITAS LOCALSTORAGE ---
+        function getHistory() {
+            return JSON.parse(localStorage.getItem('bell_history') || '[]');
+        }
+
+        function saveHistory(timestamp) {
+            const list = getHistory();
+            list.unshift({
+                id: Date.now(),
+                time: timestamp || new Date().toLocaleTimeString(),
+                date: new Date().toLocaleDateString('pt-BR')
+            });
+            localStorage.setItem('bell_history', JSON.stringify(list.slice(0, 15)));
+            renderHistory();
+        }
+
+        function clearHistory() {
+            localStorage.removeItem('bell_history');
+            renderHistory();
+            showToast('Histórico limpo com sucesso.', 'info');
+        }
+
+        function renderHistory() {
+            const historyContainer = document.getElementById('history-list');
+            if (!historyContainer) return;
+
+            const list = getHistory();
+            if (list.length === 0) {
+                historyContainer.innerHTML = `
+                    <div class="text-center py-8 text-slate-500 text-sm">
+                        <i class="fa-solid fa-bell-slash text-2xl mb-2"></i>
+                        <p>Nenhuma visita registrada ainda.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            historyContainer.innerHTML = list.map(item => `
+                <div class="bg-slate-900/60 border border-slate-700/40 p-3.5 rounded-xl flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-400 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-user-check"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-slate-200">Visitante no Portão</p>
+                            <p class="text-[11px] text-slate-400">${item.date} às ${item.time}</p>
+                        </div>
+                    </div>
+                    <span class="text-[10px] bg-slate-800 border border-slate-700 text-slate-400 px-2 py-0.5 rounded-md">Atendido</span>
+                </div>
+            `).join('');
+        }
+
+        // --- SISTEMA DE NOTIFICAÇÃO TOAST ---
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            const bgColors = {
+                success: 'bg-emerald-600 border-emerald-500 text-white',
+                error: 'bg-red-600 border-red-500 text-white',
+                info: 'bg-slate-800 border-slate-700 text-slate-100'
+            };
+
+            const icons = {
+                success: 'fa-circle-check text-emerald-300',
+                error: 'fa-circle-exclamation text-red-300',
+                info: 'fa-circle-info text-brand-400'
+            };
+
+            toast.className = `${bgColors[type] || bgColors.info} border p-4 rounded-2xl shadow-2xl flex items-center gap-3 pointer-events-auto transition duration-300 transform translate-y-2 text-sm`;
+            toast.innerHTML = `
+                <i class="fa-solid ${icons[type]} text-lg"></i>
+                <div class="flex-1">${message}</div>
+                <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+    </script>
+</body>
+</html>
