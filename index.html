@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Campainha Inteligente Real (P2P)</title>
-    <!-- Biblioteca de QR Code -->
+    <title>Campainha Inteligente com Vídeo Chamada Real</title>
+    <!-- Biblioteca QR Code -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- PeerJS para conexão direta e gratuita entre dispositivos -->
+    <!-- PeerJS para WebRTC P2P Gratuito -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -14,138 +14,142 @@
             --primary-hover: #4338ca;
             --danger: #dc2626;
             --success: #16a34a;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text: #1e293b;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
-        .container { width: 100%; max-width: 480px; background: var(--card-bg); padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
-        h1 { font-size: 1.5rem; text-align: center; margin-bottom: 20px; color: var(--primary); }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; }
-        button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 10px; }
+        .container { width: 100%; max-width: 480px; background: var(--card-bg); padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; }
+        h1 { font-size: 1.5rem; margin-bottom: 15px; color: #818cf8; }
+        p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px; }
+        button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 10px; }
         button:hover { background: var(--primary-hover); }
         button.danger { background: var(--danger); }
         button.danger:hover { background: #b91c1c; }
         button.success { background: var(--success); }
         button.success:hover { background: #15803d; }
         .hidden { display: none !important; }
-        .text-center { text-align: center; }
         
-        #qrcode-box { display: flex; justify-content: center; margin: 20px 0; background: #f1f5f9; padding: 20px; border-radius: 12px; }
+        #qrcode-box { display: flex; justify-content: center; margin: 20px 0; background: white; padding: 20px; border-radius: 12px; }
         
-        #call-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white; padding: 20px; }
-        .video-container { display: flex; gap: 10px; width: 100%; max-width: 600px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
-        video { width: 100%; max-width: 280px; height: 210px; background: #334155; border-radius: 12px; object-fit: cover; border: 2px solid #cbd5e1; }
-        .call-actions { display: flex; gap: 15px; width: 100%; max-width: 300px; }
+        /* Modal de Chamada / Vídeo */
+        #call-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
+        .video-wrapper { width: 100%; max-width: 400px; height: 300px; background: #000; border-radius: 16px; overflow: hidden; position: relative; margin-bottom: 20px; border: 2px solid #334155; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Vídeo flutuante do morador (aparece apenas para ele após atender) */
+        #local-video-preview { position: absolute; bottom: 15px; right: 15px; width: 100px; height: 130px; border-radius: 8px; border: 2px solid white; object-fit: cover; background: #334155; }
+        
+        .actions { display: flex; gap: 15px; width: 100%; max-width: 400px; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <!-- TELA 1: PAINEL DO MORADOR (CONECTANDO) -->
-        <div id="screen-morador" class="hidden">
-            <h1>🏠 Painel do Morador</h1>
-            <p class="text-center" style="color: #64748b; font-size: 0.9rem; margin-bottom: 15px;">Deixe esta página aberta no seu celular ou computador de casa.</p>
-            
-            <div class="form-group text-center">
-                <label>QR Code para colocar na porta</label>
-                <div id="qrcode-box"><div id="qrcode"></div></div>
-                <p id="connection-status" style="font-size: 0.85rem; color: #64748b; margin-top: 5px;">Conectando à rede P2P...</p>
-                <button onclick="downloadQRCode()" style="background: #334155; margin-top: 15px;">Baixar Imagem QR Code</button>
-            </div>
+        <!-- TELA 1: PAINEL DE CASA (GERA O QR CODE) -->
+        <div id="screen-home">
+            <h1>🏠 Painel da Casa</h1>
+            <p>Mantenha esta aba aberta em casa. O QR Code abaixo é o endereço da sua campainha.</p>
+            <div id="qrcode-box"><div id="qrcode"></div></div>
+            <p id="connection-status" style="font-size: 0.8rem; color: #f59e0b;">Conectando ao sistema...</p>
+            <button onclick="downloadQRCode()" style="background: #334155;">Baixar Imagem do QR Code</button>
         </div>
 
-        <!-- TELA 2: TELA DO VISITANTE (QUANDO ESCANEIA O QR CODE) -->
-        <div id="screen-visitante" class="hidden">
+        <!-- TELA 2: TELA DO VISITANTE (QUANDO ESCANEIA O QR CODE NA RUA) -->
+        <div id="screen-visitor" class="hidden">
             <h1>🚪 Campainha Externa</h1>
-            <p class="text-center" style="margin-bottom: 25px; color: #64748b;">Toque no botão para chamar o morador em tempo real.</p>
-            <button id="btn-ring" class="success" onclick="tocarCampainhaReal()" style="padding: 22px; font-size: 1.3rem;">🔔 TOCAR CAMPAINHA</button>
-            
-            <video id="visitor-camera" style="display:none;" autoplay playsinline></video>
-            <canvas id="photo-canvas" style="display:none;"></canvas>
+            <p>Toque no botão para chamar os moradores em vídeo chamada ao vivo.</p>
+            <button id="btn-ring" class="success" onclick="tocarCampainha()">🔔 TOCAR CAMPAINHA</button>
         </div>
     </div>
 
-    <!-- MODAL DE CHAMADA AO VIVO PARA O MORADOR -->
+    <!-- MODAL DE CHAMADA (Toca campainha e gerencia o vídeo) -->
     <div id="call-overlay" class="hidden">
-        <h2 id="call-title" style="margin-bottom: 15px;">📞 Campainha Tocando!</h2>
+        <h2 id="call-status-text" style="margin-bottom: 15px; font-size: 1.2rem;">📞 Chamada Recebida!</h2>
         
-        <div class="video-container">
-            <div>
-                <p style="font-size: 0.8rem; text-align: center; margin-bottom: 5px;">Câmera do Visitante</p>
-                <video id="remote-video" autoplay playsinline></video>
-            </div>
+        <div class="video-wrapper">
+            <!-- Vídeo do visitante (exibido para ambos) -->
+            <video id="remote-video" autoplay playsinline></video>
+            <!-- Vídeo de quem está em casa (só aparece se atender) -->
+            <video id="local-video-preview" class="hidden" autoplay playsinline muted></video>
         </div>
 
-        <div class="call-actions">
-            <button class="danger" onclick="desligarChamada()">Desligar</button>
+        <div class="actions" id="call-buttons">
+            <!-- Botões para quem está em casa -->
+            <div id="home-actions" class="hidden" style="display: flex; gap: 10px; width: 100%;">
+                <button class="success" onclick="atenderChamada()">Atender</button>
+                <button class="danger" onclick="recusarChamada()">Recusar</button>
+            </div>
+            <!-- Botão para quem está na rua (aguardando ou desligar) -->
+            <div id="visitor-actions" class="hidden" style="width: 100%;">
+                <button class="danger" onclick="encerrarChamada()">Cancelar / Desligar</button>
+            </div>
         </div>
     </div>
 
     <script>
         let peer;
         let myId = "";
-        let activeConnection = null;
-        let activeCall = null;
-        let ringInterval;
+        let currentCall = null;
+        let localStream = null;
+        let ringInterval = null;
+        let isHome = true;
 
-        window.onload = function() {
+        window.onload = async function() {
             const urlParams = new URLSearchParams(window.location.search);
-            const ownerId = urlParams.get('owner');
+            const homeId = urlParams.get('home');
 
-            if (ownerId) {
-                // Modo Visitante (Veio pelo QR Code da rua)
-                document.getElementById('screen-visitante').classList.remove('hidden');
-                inicializarVisitante(ownerId);
+            if (homeId) {
+                // Modo Visitante (veio pela rua com o ?home=ID)
+                isHome = false;
+                document.getElementById('screen-home').classList.add('hidden');
+                document.getElementById('screen-visitor').classList.remove('hidden');
+                inicializarVisitante(homeId);
             } else {
-                // Modo Morador (Está em casa configurando)
-                document.getElementById('screen-morador').classList.remove('hidden');
+                // Modo Morador (aparelho de casa)
+                isHome = true;
                 inicializarMorador();
             }
         };
 
-        // --- MODO MORADOR (CASA) ---
+        // --- 1. CONFIGURAÇÃO DA CASA (MORADOR) ---
         function inicializarMorador() {
-            // Cria um identificador único aleatório para o morador usando PeerJS gratuito
-            peer = new Peer();
+            peer = new Peer(); // Servidor P2P gratuito
 
             peer.on('open', (id) => {
                 myId = id;
-                document.getElementById('connection-status').innerText = "Status: Online e Conectado!";
-                gerarQRCode(myId);
+                document.getElementById('connection-status').innerText = "Status: Online e Pronto na Casa!";
+                document.getElementById('connection-status').style.color = "#10b981";
+                gerarQRCode(id);
             });
 
-            // Recebe dados de toque ou chamadas de vídeo do visitante
-            peer.on('connection', (conn) => {
-                activeConnection = conn;
-                conn.on('data', (data) => {
-                    if (data.type === 'RING') {
-                        tocarAlarmeSonoro();
-                        document.getElementById('call-overlay').classList.remove('hidden');
-                    }
+            // Quando o visitante liga (inicia a chamada de vídeo)
+            peer.on('call', async (call) => {
+                currentCall = call;
+                tocarAlarmeSonoro(); // Toca a campainha sem parar até atender ou recusar
+
+                // Exibe a tela de alerta no aparelho da casa
+                document.getElementById('call-overlay').classList.remove('hidden');
+                document.getElementById('call-status-text').innerText = "🔔 Campainha Tocando!";
+                document.getElementById('home-actions').classList.remove('hidden');
+                document.getElementById('visitor-actions').classList.add('hidden');
+
+                // O visitante envia o stream dele automaticamente. Exibimos a câmera dele na tela da casa:
+                call.on('stream', (visitorStream) => {
+                    const remoteVideo = document.getElementById('remote-video');
+                    remoteVideo.srcObject = visitorStream;
                 });
-            });
 
-            peer.on('call', (call) => {
-                // Atende automaticamente a transmissão de vídeo do visitante quando ele toca
-                navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((stream) => {
-                    call.answer(stream); // Responde com o áudio/vídeo da casa se quiser
-                    call.on('stream', (remoteStream) => {
-                        const remoteVideo = document.getElementById('remote-video');
-                        remoteVideo.srcObject = remoteStream;
-                    });
-                    activeCall = call;
-                }).catch(err => {
-                    console.error("Erro na webcam:", err);
+                call.on('close', () => {
+                    fecharTudoUI();
                 });
             });
         }
 
         function gerarQRCode(id) {
             const baseUrl = window.location.href.split('?')[0];
-            const visitorUrl = `${baseUrl}?owner=${id}`;
+            const visitorUrl = `${baseUrl}?home=${id}`;
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = "";
             new QRCode(qrContainer, { text: visitorUrl, width: 160, height: 160 });
@@ -161,66 +165,129 @@
             }
         }
 
-        // --- MODO VISITANTE (RUA) ---
-        function inicializarVisitante(ownerId) {
+        // --- 2. CONFIGURAÇÃO DO VISITANTE (RUA) ---
+        function inicializarVisitante(homeId) {
             peer = new Peer();
-            peer.on('open', () => {
-                // Conecta diretamente ao ID do morador
-                window.moradorConn = peer.connect(ownerId);
-            });
+            window.targetHomeId = homeId;
         }
 
-        function tocarCampainhaReal() {
+        async function tocarCampainha() {
             const btn = document.getElementById('btn-ring');
             btn.disabled = true;
-            btn.innerText = "🔔 CHAMANDO O MORADOR...";
+            btn.innerText = "🔔 CHAMANDO...";
 
-            tocarAlarmeSonoro();
+            try {
+                // Pega a câmera e o microfone do visitante imediatamente
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                
+                // Exibe o modal de chamada na rua
+                document.getElementById('call-overlay').classList.remove('hidden');
+                document.getElementById('call-status-text').innerText = "Chamando o morador... Aguarde.";
+                document.getElementById('visitor-actions').classList.remove('hidden');
+                document.getElementById('home-actions').classList.add('hidden');
 
-            if (window.moradorConn) {
-                window.moradorConn.send({ type: 'RING' });
-            }
+                // Faz a chamada de vídeo P2P para o ID da casa
+                const call = peer.call(window.targetHomeId, localStream);
+                currentCall = call;
 
-            // Inicia chamada de vídeo direta para o morador
-            navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((stream) => {
-                const call = peer.call(new URLSearchParams(window.location.search).get('owner'), stream);
-                call.on('stream', (remoteStream) => {
-                    // Opcional: mostrar retorno se houver
+                // Quando o morador atender, ele mandará o stream de volta (a câmera de casa só aparece agora)
+                call.on('stream', (homeStream) => {
+                    document.getElementById('call-status-text').innerText = "🟢 Chamada Atendida!";
+                    const remoteVideo = document.getElementById('remote-video');
+                    remoteVideo.srcObject = homeStream; // Agora o visitante vê a casa
                 });
-            }).catch(err => {
-                alert("Permissão de câmera necessária para chamar.");
-            });
 
-            alert('Campainha tocada com sucesso para a casa!');
-            setTimeout(() => {
+                call.on('close', () => {
+                    fecharTudoUI();
+                    alert("A chamada foi encerrada.");
+                });
+
+            } catch (err) {
+                alert("Erro ao acessar a câmera. Permissão negada ou indisponível.");
                 btn.disabled = false;
                 btn.innerText = "🔔 TOCAR CAMPAINHA";
-            }, 3000);
+            }
         }
 
-        // --- UTILITÁRIOS DE ÁUDIO E CHAMADA ---
+        // --- 3. AÇÕES DE ATENDIMENTO NA CASA ---
+        async function atenderChamada() {
+            pararAlarmeSonoro();
+            document.getElementById('call-status-text').innerText = "🟢 Conectado com o Visitante";
+            document.getElementById('home-actions').classList.add('hidden');
+
+            try {
+                // Pega a câmera de quem está em casa
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                
+                // Mostra o vídeo de quem está em casa no quadradinho flutuante (conforme solicitado: o de casa não aparece até atender)
+                const localVideo = document.getElementById('local-video-preview');
+                localVideo.srcObject = localStream;
+                localVideo.classList.remove('hidden');
+
+                // Responde à chamada enviando o stream de casa para o visitante
+                currentCall.answer(localStream);
+
+            } catch (err) {
+                alert("Erro ao abrir a câmera da casa.");
+                recusarChamada();
+            }
+        }
+
+        function recusarChamada() {
+            pararAlarmeSonoro();
+            if (currentCall) currentCall.close();
+            fecharTudoUI();
+        }
+
+        function encerrarChamada() {
+            if (currentCall) currentCall.close();
+            fecharTudoUI();
+            location.reload();
+        }
+
+        function fecharTudoUI() {
+            pararAlarmeSonoro();
+            document.getElementById('call-overlay').classList.add('hidden');
+            document.getElementById('local-video-preview').classList.add('hidden');
+            
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            if (!isHome) {
+                const btn = document.getElementById('btn-ring');
+                if(btn) {
+                    btn.disabled = false;
+                    btn.innerText = "🔔 TOCAR CAMPAINHA";
+                }
+            }
+        }
+
+        // --- ALARME SONORO CONTÍNUO (BIP DE CAMPAINHA) ---
         function tocarAlarmeSonoro() {
+            if (ringInterval) return;
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             ringInterval = setInterval(() => {
                 if(audioCtx.state === 'suspended') audioCtx.resume();
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-                osc.frequency.setValueAtTime(480, audioCtx.currentTime + 0.2);
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // Nota D5
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.25); // Nota A5
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start();
-                osc.stop(audioCtx.currentTime + 0.4);
-            }, 800);
+                osc.stop(audioCtx.currentTime + 0.5);
+            }, 900);
         }
 
-        function desligarChamada() {
-            clearInterval(ringInterval);
-            document.getElementById('call-overlay').classList.add('hidden');
-            if (activeCall) activeCall.close();
+        function pararAlarmeSonoro() {
+            if (ringInterval) {
+                clearInterval(ringInterval);
+                ringInterval = null;
+            }
         }
     </script>
 </body>
