@@ -1,294 +1,965 @@
+```html
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Campainha Inteligente com Vídeo Chamada Real</title>
-    <!-- Biblioteca QR Code -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- PeerJS para WebRTC P2P Gratuito -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <style>
-        :root {
-            --primary: #4f46e5;
-            --primary-hover: #4338ca;
-            --danger: #dc2626;
-            --success: #16a34a;
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --text: #f8fafc;
+    <title>Doorvi - Assistente Porteiro Inteligente</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        },
+                        darkbg: '#0f172a',
+                        darkcard: '#1e293b'
+                    }
+                }
+            }
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
-        .container { width: 100%; max-width: 480px; background: var(--card-bg); padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; }
-        h1 { font-size: 1.5rem; margin-bottom: 15px; color: #818cf8; }
-        p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px; }
-        button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 10px; }
-        button:hover { background: var(--primary-hover); }
-        button.danger { background: var(--danger); }
-        button.danger:hover { background: #b91c1c; }
-        button.success { background: var(--success); }
-        button.success:hover { background: #15803d; }
-        .hidden { display: none !important; }
-        
-        #qrcode-box { display: flex; justify-content: center; margin: 20px 0; background: white; padding: 20px; border-radius: 12px; }
-        
-        /* Modal de Chamada / Vídeo */
-        #call-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
-        .video-wrapper { width: 100%; max-width: 400px; height: 300px; background: #000; border-radius: 16px; overflow: hidden; position: relative; margin-bottom: 20px; border: 2px solid #334155; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* Vídeo flutuante do morador (aparece apenas para ele após atender) */
-        #local-video-preview { position: absolute; bottom: 15px; right: 15px; width: 100px; height: 130px; border-radius: 8px; border: 2px solid white; object-fit: cover; background: #334155; }
-        
-        .actions { display: flex; gap: 15px; width: 100%; max-width: 400px; }
+    </script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- QRCode JS Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 4px;
+        }
+        .pulse-ring {
+            animation: pulse-ring-anim 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        @keyframes pulse-ring-anim {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 0.4; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
     </style>
 </head>
-<body>
+<body class="bg-gray-100 dark:bg-darkbg text-gray-800 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
 
-    <div class="container">
-        <!-- TELA 1: PAINEL DE CASA (GERA O QR CODE) -->
-        <div id="screen-home">
-            <h1>🏠 Painel da Casa</h1>
-            <p>Mantenha esta aba aberta em casa. O QR Code abaixo é o endereço da sua campainha.</p>
-            <div id="qrcode-box"><div id="qrcode"></div></div>
-            <p id="connection-status" style="font-size: 0.8rem; color: #f59e0b;">Conectando ao sistema...</p>
-            <button onclick="downloadQRCode()" style="background: #334155;">Baixar Imagem do QR Code</button>
+    <!-- Header / Navbar Topo -->
+    <header class="bg-white dark:bg-darkcard border-b border-gray-200 dark:border-gray-800 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-brand-500/30">
+                    <i class="fa-solid font-bold fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight flex items-center gap-2">
+                        Doorvi <span class="text-xs font-semibold px-2 py-0.5 rounded bg-brand-100 text-brand-700 dark:bg-brand-900/50 dark:text-brand-300">Portaria 24h</span>
+                    </h1>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Residencial Bela Vista • Apt 402</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <!-- Botão Simular Chamada -->
+                <button onclick="simularChamadaEntrada()" class="hidden sm:flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-semibold px-3 py-2 rounded-xl transition shadow-sm">
+                    <i class="fa-solid fa-phone-volume animate-bounce"></i> Testar Interfone
+                </button>
+                <!-- Alternar Tema -->
+                <button onclick="toggleTheme()" class="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition" title="Alternar Tema">
+                    <i id="theme-icon" class="fa-solid fa-moon"></i>
+                </button>
+            </div>
         </div>
+    </header>
 
-        <!-- TELA 2: TELA DO VISITANTE (QUANDO ESCANEIA O QR CODE NA RUA) -->
-        <div id="screen-visitor" class="hidden">
-            <h1>🚪 Campainha Externa</h1>
-            <p>Toque no botão para chamar os moradores em vídeo chamada ao vivo.</p>
-            <button id="btn-ring" class="success" onclick="tocarCampainha()">🔔 TOCAR CAMPAINHA</button>
-        </div>
-    </div>
-
-    <!-- MODAL DE CHAMADA (Toca campainha e gerencia o vídeo) -->
-    <div id="call-overlay" class="hidden">
-        <h2 id="call-status-text" style="margin-bottom: 15px; font-size: 1.2rem;">📞 Chamada Recebida!</h2>
+    <!-- Conteúdo Principal Dinâmico por Abas -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-4 mb-20 md:mb-6">
         
-        <div class="video-wrapper">
-            <!-- Vídeo do visitante (exibido para ambos) -->
-            <video id="remote-video" autoplay playsinline></video>
-            <!-- Vídeo de quem está em casa (só aparece se atender) -->
-            <video id="local-video-preview" class="hidden" autoplay playsinline muted></video>
-        </div>
+        <!-- Toast Notification Alert -->
+        <div id="toast-container" class="fixed top-16 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
-        <div class="actions" id="call-buttons">
-            <!-- Botões para quem está em casa -->
-            <div id="home-actions" class="hidden" style="display: flex; gap: 10px; width: 100%;">
-                <button class="success" onclick="atenderChamada()">Atender</button>
-                <button class="danger" onclick="recusarChamada()">Recusar</button>
+        <!-- ABA 1: PAINEL INÍCIO / DASHBOARD -->
+        <section id="tab-home" class="tab-content space-y-6">
+            <!-- Banner Status do Sistema -->
+            <div class="bg-gradient-to-r from-brand-600 to-indigo-700 rounded-2xl p-5 text-white shadow-xl relative overflow-hidden">
+                <div class="absolute -right-6 -bottom-6 text-white/10 text-9xl">
+                    <i class="fa-solid fa-door-open"></i>
+                </div>
+                <div class="relative z-10">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Sistema Ativo & Monitorando
+                        </span>
+                        <span class="text-xs text-white/80" id="current-clock">00:00:00</span>
+                    </div>
+                    <h2 class="text-2xl font-bold mb-1">Bem-vindo, Morador!</h2>
+                    <p class="text-indigo-100 text-sm max-w-md">Gerencie acessos, responda ao interfone de forma inteligente e acompanhe suas encomendas.</p>
+                    
+                    <div class="mt-4 pt-4 border-t border-white/20 flex flex-wrap gap-2">
+                        <button onclick="simularChamadaEntrada()" class="sm:hidden bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow">
+                            <i class="fa-solid fa-phone-volume"></i> Simular Interfone
+                        </button>
+                        <button onclick="switchTab('qr')" class="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5">
+                            <i class="fa-solid fa-qrcode"></i> Criar Passe QR
+                        </button>
+                        <button onclick="destravarPortaoSemChamada()" class="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5">
+                            <i class="fa-solid fa-key"></i> Abrir Portão Principal
+                        </button>
+                    </div>
+                </div>
             </div>
-            <!-- Botão para quem está na rua (aguardando ou desligar) -->
-            <div id="visitor-actions" class="hidden" style="width: 100%;">
-                <button class="danger" onclick="encerrarChamada()">Cancelar / Desligar</button>
+
+            <!-- Cards Resumo de Métricas -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div onclick="switchTab('deliveries')" class="cursor-pointer bg-white dark:bg-darkcard p-4 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm hover:border-brand-500 transition">
+                    <div class="flex items-center justify-between text-amber-500 mb-2">
+                        <i class="fa-solid fa-box text-xl"></i>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400" id="badge-enc-count">0</span>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Encomendas</p>
+                    <h3 class="text-lg font-bold" id="dash-enc-pending">0 Pendentes</h3>
+                </div>
+
+                <div onclick="switchTab('qr')" class="cursor-pointer bg-white dark:bg-darkcard p-4 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm hover:border-brand-500 transition">
+                    <div class="flex items-center justify-between text-brand-500 mb-2">
+                        <i class="fa-solid fa-id-badge text-xl"></i>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400" id="badge-qr-count">0</span>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Passes Ativos</p>
+                    <h3 class="text-lg font-bold" id="dash-qr-active">0 QR Codes</h3>
+                </div>
+
+                <div onclick="switchTab('intercom')" class="cursor-pointer bg-white dark:bg-darkcard p-4 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm hover:border-brand-500 transition">
+                    <div class="flex items-center justify-between text-emerald-500 mb-2">
+                        <i class="fa-solid fa-video text-xl"></i>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400">HD 1080p</span>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Câmera Portaria</p>
+                    <h3 class="text-lg font-bold text-emerald-600 dark:text-emerald-400">Online</h3>
+                </div>
+
+                <div onclick="switchTab('history')" class="cursor-pointer bg-white dark:bg-darkcard p-4 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm hover:border-brand-500 transition">
+                    <div class="flex items-center justify-between text-sky-500 mb-2">
+                        <i class="fa-solid fa-clock-rotate-left text-xl"></i>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400">Hoje</span>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Acessos</p>
+                    <h3 class="text-lg font-bold" id="dash-access-today">0 Registros</h3>
+                </div>
             </div>
+
+            <!-- Últimas Atividades / Acessos -->
+            <div class="bg-white dark:bg-darkcard rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-base flex items-center gap-2">
+                        <i class="fa-solid fa-bolt text-brand-500"></i> Últimas Atividades
+                    </h3>
+                    <button onclick="switchTab('history')" class="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline">Ver Histórico</button>
+                </div>
+                <div id="home-recent-activity" class="space-y-3">
+                    <!-- Preenchido via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ABA 2: INTERFONE DE VÍDEO & ATENDIMENTO INTELIGENTE -->
+        <section id="tab-intercom" class="tab-content hidden space-y-6">
+            <div class="bg-white dark:bg-darkcard rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold">Interfone & Câmera ao Vivo</h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Painel de atendimento virtual com vídeo/áudio bidirecional</p>
+                    </div>
+                    <span id="intercom-status-pill" class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                        Standby
+                    </span>
+                </div>
+
+                <!-- Feed do Vídeo (Câmera do Dispositivo ou Simulador) -->
+                <div class="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-inner border border-gray-800 flex items-center justify-center group">
+                    <video id="intercom-video" class="w-full h-full object-cover hidden" autoplay playsinline muted></video>
+
+                    <!-- Tela Visual de Chamada / Espera Simulada -->
+                    <div id="video-placeholder" class="text-center p-6 flex flex-col items-center justify-center">
+                        <div class="w-20 h-20 rounded-full bg-brand-900/40 border border-brand-500/30 flex items-center justify-center text-brand-400 text-3xl mb-3 pulse-ring">
+                            <i class="fa-solid fa-user-gear"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-200 text-base" id="visitor-title">Portaria Principal sem chamadas no momento</h4>
+                        <p class="text-xs text-gray-400 max-w-xs mt-1" id="visitor-subtitle">Clique abaixo para ativar sua câmera ou simular um visitante na porta.</p>
+                    </div>
+
+                    <!-- Overlay de Chamada Ativa / Cronômetro -->
+                    <div id="call-overlay" class="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-white text-xs font-semibold hidden flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                        <span id="call-timer">00:00</span>
+                    </div>
+
+                    <!-- Overlay de Gate Status -->
+                    <div id="gate-overlay" class="absolute inset-0 bg-emerald-950/80 backdrop-blur-sm hidden flex flex-col items-center justify-center text-emerald-400 font-bold transition">
+                        <i class="fa-solid fa-lock-open text-6xl animate-bounce mb-3"></i>
+                        <span class="text-xl">Portão Principal Destravado!</span>
+                        <span class="text-xs text-emerald-300 font-normal mt-1">Acesso liberado temporariamente</span>
+                    </div>
+                </div>
+
+                <!-- Painel de Controles da Chamada -->
+                <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <button onclick="toggleCamStream()" id="btn-toggle-cam" class="p-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl text-xs font-semibold flex flex-col items-center justify-center gap-1.5 transition">
+                        <i class="fa-solid fa-camera text-base text-indigo-500"></i> Minha Câmera
+                    </button>
+                    <button onclick="simularChamadaEntrada()" class="p-3 bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/30 dark:hover:bg-brand-900/50 rounded-xl text-xs font-semibold text-brand-600 dark:text-brand-300 flex flex-col items-center justify-center gap-1.5 transition">
+                        <i class="fa-solid fa-phone-arrow-down-left text-base text-brand-500"></i> Simular Visitante
+                    </button>
+                    <button onclick="destravarPortaoSemChamada()" class="p-3 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 rounded-xl text-xs font-semibold text-emerald-600 dark:text-emerald-300 flex flex-col items-center justify-center gap-1.5 transition">
+                        <i class="fa-solid fa-key text-base text-emerald-500"></i> Abrir Portão
+                    </button>
+                    <button onclick="encerrarChamada()" id="btn-hangup" class="p-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-300 flex flex-col items-center justify-center gap-1.5 transition opacity-50 cursor-not-allowed" disabled>
+                        <i class="fa-solid fa-phone-slash text-base text-rose-500"></i> Encerrar Chamada
+                    </button>
+                </div>
+
+                <!-- Módulo Respostas Rápidas (Voz Inteligente TTS) -->
+                <div class="mt-6 border-t border-gray-200 dark:border-gray-800 pt-4">
+                    <h3 class="text-sm font-bold mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-comment-dots text-brand-500"></i> Respostas Rápidas com Alto-Falante (Voz AI)
+                    </h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Toque para que a portaria reproduza uma resposta de voz clara para o visitante:</p>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button onclick="falarRespostaRapida('Pode deixar a encomenda na portaria, obrigado!')" class="p-3 bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-800 text-left rounded-xl border border-gray-200 dark:border-gray-700/60 transition flex items-center justify-between group">
+                            <span class="text-xs font-medium">📦 "Pode deixar na portaria, obrigado!"</span>
+                            <i class="fa-solid fa-volume-high text-xs text-gray-400 group-hover:text-brand-500"></i>
+                        </button>
+                        <button onclick="falarRespostaRapida('Estou descendo para te atender, só um momento!')" class="p-3 bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-800 text-left rounded-xl border border-gray-200 dark:border-gray-700/60 transition flex items-center justify-between group">
+                            <span class="text-xs font-medium">🚶 "Já estou descendo, só um instante!"</span>
+                            <i class="fa-solid fa-volume-high text-xs text-gray-400 group-hover:text-brand-500"></i>
+                        </button>
+                        <button onclick="falarRespostaRapida('Não estou em casa no momento. Favor retornar mais tarde.')" class="p-3 bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-800 text-left rounded-xl border border-gray-200 dark:border-gray-700/60 transition flex items-center justify-between group">
+                            <span class="text-xs font-medium">🏠 "Não estou em casa agora."</span>
+                            <i class="fa-solid fa-volume-high text-xs text-gray-400 group-hover:text-brand-500"></i>
+                        </button>
+                        <button onclick="falarRespostaRapida('Acesso liberado. Pode subir até o apartamento!')" class="p-3 bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-800 text-left rounded-xl border border-gray-200 dark:border-gray-700/60 transition flex items-center justify-between group">
+                            <span class="text-xs font-medium">🔓 "Portão aberto, pode subir!"</span>
+                            <i class="fa-solid fa-volume-high text-xs text-gray-400 group-hover:text-brand-500"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ABA 3: GERADOR & LEITOR DE QR CODE DE VISITANTE -->
+        <section id="tab-qr" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Emissão de Novo Passe -->
+                <div class="bg-white dark:bg-darkcard rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold mb-1">Gerar Passe QR Temporário</h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Envie um convite em QR Code seguro para seu visitante ou prestador de serviço.</p>
+
+                        <form id="form-qr" onsubmit="gerarNovoQRCode(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Nome do Visitante / Prestador</label>
+                                <input type="text" id="qr-visitor-name" required placeholder="Ex: Carlos Oliveira (Prestador)" class="w-full text-xs p-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold mb-1">Tipo de Acesso</label>
+                                    <select id="qr-access-type" class="w-full text-xs p-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                        <option value="Unico">Acesso Único</option>
+                                        <option value="Entregador">Entregador</option>
+                                        <option value="Familiar">Visitante Familiar</option>
+                                        <option value="Servico">Prestador Serviço</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold mb-1">Validade</label>
+                                    <select id="qr-validity" class="w-full text-xs p-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                        <option value="1">1 hora</option>
+                                        <option value="4">4 horas</option>
+                                        <option value="24" selected>24 horas</option>
+                                        <option value="72">3 dias</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-qrcode"></i> Gerar QR Code
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Resultado QR Gerado Em Tempo Real -->
+                    <div id="qr-result-box" class="mt-6 p-4 rounded-xl border border-brand-200 dark:border-brand-900/60 bg-brand-50/50 dark:bg-brand-900/20 text-center hidden flex-col items-center">
+                        <span class="text-xs font-bold text-brand-600 dark:text-brand-400 mb-2">QR Code de Acesso Pronto</span>
+                        <div id="qrcode-canvas-target" class="bg-white p-3 rounded-xl shadow-md my-2"></div>
+                        <p class="text-xs font-semibold text-gray-700 dark:text-gray-200 mt-1" id="qr-preview-name">-</p>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400" id="qr-preview-code">-</p>
+                        <button onclick="copiarCodigoPasse()" class="mt-3 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-3 py-1.5 rounded-lg font-medium hover:bg-gray-100 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-copy text-brand-500"></i> Copiar Código do Convite
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Leitor / Verificador de QR Code -->
+                <div class="bg-white dark:bg-darkcard rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold mb-1">Validar Passe de Entrada</h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Simule a leitura na totem da portaria inserindo ou escaneando o passe.</p>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Digitar Código do QR Passe</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="scan-input-code" placeholder="Ex: DVR-8921" class="uppercase w-full text-xs p-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                    <button onclick="validarCodigoQRDia()" class="px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition">
+                                        Validar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-gray-200 dark:border-gray-800 pt-4">
+                                <h4 class="text-xs font-bold mb-2">Passes Ativos Recentemente</h4>
+                                <div id="active-qr-list" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                    <!-- Preenchido via JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ABA 4: GESTÃO DE ENCOMENDAS -->
+        <section id="tab-deliveries" class="tab-content hidden space-y-6">
+            <div class="bg-white dark:bg-darkcard rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+                    <div>
+                        <h2 class="text-lg font-bold">Gestão de Encomendas & Pacotes</h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Controle recebimento de entregas com notificações instantâneas</p>
+                    </div>
+                    <button onclick="abrirModalNovaEncomenda()" class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition flex items-center gap-2 self-start sm:self-auto">
+                        <i class="fa-solid fa-plus"></i> Registrar Encomenda
+                    </button>
+                </div>
+
+                <!-- Lista de Encomendas -->
+                <div id="deliveries-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Preenchido via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ABA 5: HISTÓRICO DE ACESSOS E LOGS -->
+        <section id="tab-history" class="tab-content hidden space-y-6">
+            <div class="bg-white dark:bg-darkcard rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold">Histórico Completo de Acessos</h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Registro detalhado de liberação de portão e visitas</p>
+                    </div>
+                    <button onclick="limparHistorico()" class="text-xs text-rose-500 hover:underline">Limpar Logs</button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-gray-50 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 uppercase font-semibold">
+                            <tr>
+                                <th class="p-3">Data/Hora</th>
+                                <th class="p-3">Evento / Visitante</th>
+                                <th class="p-3">Tipo</th>
+                                <th class="p-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body" class="divide-y divide-gray-100 dark:divide-gray-800">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal Modal Registrar Encomenda -->
+    <div id="modal-delivery" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-darkcard w-full max-w-md rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-2xl relative">
+            <button onclick="fecharModalNovaEncomenda()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-lg font-bold mb-1">Nova Encomenda Chegou</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Registre o pacote recebido na portaria para o morador.</p>
+
+            <form onsubmit="salvarNovaEncomenda(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold mb-1">Empresa / Transportadora</label>
+                    <input type="text" id="delivery-carrier" required placeholder="Ex: Mercado Livre, Amazon, iFood, Correios" class="w-full text-xs p-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold mb-1">Código de Rastreio / Pacote</label>
+                    <input type="text" id="delivery-code" required placeholder="Ex: BR-982311" class="w-full text-xs p-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold mb-1">Descrição Breve do Pacote</label>
+                    <input type="text" id="delivery-desc" placeholder="Ex: Caixa média parda" class="w-full text-xs p-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <button type="submit" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-md transition">
+                    Notificar Morador & Salvar
+                </button>
+            </form>
         </div>
     </div>
 
+    <!-- Navegação Inferior Fixa (Mobile Bottom Bar) -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-darkcard/90 backdrop-blur-md border-t border-gray-200 dark:border-gray-800 z-30">
+        <div class="max-w-4xl mx-auto flex justify-around py-2">
+            <button onclick="switchTab('home')" id="nav-home" class="nav-btn flex flex-col items-center gap-1 text-brand-600 dark:text-brand-400">
+                <i class="fa-solid fa-house text-lg"></i>
+                <span class="text-[10px] font-medium">Início</span>
+            </button>
+            <button onclick="switchTab('intercom')" id="nav-intercom" class="nav-btn flex flex-col items-center gap-1 text-gray-500 dark:text-gray-400">
+                <i class="fa-solid fa-phone-volume text-lg"></i>
+                <span class="text-[10px] font-medium">Interfone</span>
+            </button>
+            <button onclick="switchTab('qr')" id="nav-qr" class="nav-btn flex flex-col items-center gap-1 text-gray-500 dark:text-gray-400">
+                <i class="fa-solid fa-qrcode text-lg"></i>
+                <span class="text-[10px] font-medium">Passes QR</span>
+            </button>
+            <button onclick="switchTab('deliveries')" id="nav-deliveries" class="nav-btn flex flex-col items-center gap-1 text-gray-500 dark:text-gray-400">
+                <i class="fa-solid fa-box text-lg"></i>
+                <span class="text-[10px] font-medium">Encomendas</span>
+            </button>
+            <button onclick="switchTab('history')" id="nav-history" class="nav-btn flex flex-col items-center gap-1 text-gray-500 dark:text-gray-400">
+                <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+                <span class="text-[10px] font-medium">Acessos</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- JavaScript Logic -->
     <script>
-        let peer;
-        let myId = "";
-        let currentCall = null;
-        let localStream = null;
-        let ringInterval = null;
-        let isHome = true;
-
-        window.onload = async function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const homeId = urlParams.get('home');
-
-            if (homeId) {
-                // Modo Visitante (veio pela rua com o ?home=ID)
-                isHome = false;
-                document.getElementById('screen-home').classList.add('hidden');
-                document.getElementById('screen-visitor').classList.remove('hidden');
-                inicializarVisitante(homeId);
-            } else {
-                // Modo Morador (aparelho de casa)
-                isHome = true;
-                inicializarMorador();
-            }
+        // --- ESTADO INICIAL DA APLICAÇÃO ---
+        let appData = {
+            qrPasses: [
+                { id: 'DVR-7102', visitor: 'Luciana Souza (Amostra)', type: 'Familiar', expires: '24h', active: true, created: new Date().toLocaleTimeString() }
+            ],
+            deliveries: [
+                { id: '1', carrier: 'Mercado Livre', code: 'ML-992110', desc: 'Caixa de Eletrônicos', status: 'Aguardando Retirada', date: 'Hoje 10:30' },
+                { id: '2', carrier: 'iFood', code: 'IF-3382', desc: 'Sacola de Alimentação', status: 'Entregue', date: 'Hoje 12:15' }
+            ],
+            history: [
+                { time: 'Hoje 10:30', title: 'Encomenda Registrada', type: 'Mercado Livre', status: 'Sucesso', icon: 'fa-box' },
+                { time: 'Hoje 08:12', title: 'Portão Destravado', type: 'Controle Remoto', status: 'Liberado', icon: 'fa-door-open' }
+            ]
         };
 
-        // --- 1. CONFIGURAÇÃO DA CASA (MORADOR) ---
-        function inicializarMorador() {
-            peer = new Peer(); // Servidor P2P gratuito
+        let mediaStream = null;
+        let callInterval = null;
+        let callSeconds = 0;
+        let isCallActive = false;
+        let qrGeneratorInstance = null;
 
-            peer.on('open', (id) => {
-                myId = id;
-                document.getElementById('connection-status').innerText = "Status: Online e Pronto na Casa!";
-                document.getElementById('connection-status').style.color = "#10b981";
-                gerarQRCode(id);
+        // --- INICIALIZAÇÃO DO APP ---
+        window.addEventListener('DOMContentLoaded', () => {
+            loadFromStorage();
+            updateClock();
+            setInterval(updateClock, 1000);
+            renderAll();
+        });
+
+        // --- RELÓGIO DIGITAL ---
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('current-clock').innerText = now.toLocaleTimeString();
+        }
+
+        // --- PERSISTÊNCIA NO LOCALSTORAGE ---
+        function loadFromStorage() {
+            const saved = localStorage.getItem('doorvi_app_data');
+            if (saved) {
+                try {
+                    appData = JSON.parse(saved);
+                } catch(e) { console.error('Erro ao ler storage', e); }
+            }
+        }
+
+        function saveToStorage() {
+            localStorage.setItem('doorvi_app_data', JSON.stringify(appData));
+            renderAll();
+        }
+
+        // --- NAVEGAÇÃO DE ABAS ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            const activeTab = document.getElementById(`tab-${tabId}`);
+            if (activeTab) activeTab.classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-brand-600', 'dark:text-brand-400');
+                btn.classList.add('text-gray-500', 'dark:text-gray-400');
             });
 
-            // Quando o visitante liga (inicia a chamada de vídeo)
-            peer.on('call', async (call) => {
-                currentCall = call;
-                tocarAlarmeSonoro(); // Toca a campainha sem parar até atender ou recusar
-
-                // Exibe a tela de alerta no aparelho da casa
-                document.getElementById('call-overlay').classList.remove('hidden');
-                document.getElementById('call-status-text').innerText = "🔔 Campainha Tocando!";
-                document.getElementById('home-actions').classList.remove('hidden');
-                document.getElementById('visitor-actions').classList.add('hidden');
-
-                // O visitante envia o stream dele automaticamente. Exibimos a câmera dele na tela da casa:
-                call.on('stream', (visitorStream) => {
-                    const remoteVideo = document.getElementById('remote-video');
-                    remoteVideo.srcObject = visitorStream;
-                });
-
-                call.on('close', () => {
-                    fecharTudoUI();
-                });
-            });
-        }
-
-        function gerarQRCode(id) {
-            const baseUrl = window.location.href.split('?')[0];
-            const visitorUrl = `${baseUrl}?home=${id}`;
-            const qrContainer = document.getElementById('qrcode');
-            qrContainer.innerHTML = "";
-            new QRCode(qrContainer, { text: visitorUrl, width: 160, height: 160 });
-        }
-
-        function downloadQRCode() {
-            const qrCanvas = document.querySelector('#qrcode canvas');
-            if(qrCanvas) {
-                const link = document.createElement('a');
-                link.download = 'qrcode-campainha.png';
-                link.href = qrCanvas.toDataURL();
-                link.click();
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if (activeNav) {
+                activeNav.classList.remove('text-gray-500', 'dark:text-gray-400');
+                activeNav.classList.add('text-brand-600', 'dark:text-brand-400');
             }
         }
 
-        // --- 2. CONFIGURAÇÃO DO VISITANTE (RUA) ---
-        function inicializarVisitante(homeId) {
-            peer = new Peer();
-            window.targetHomeId = homeId;
+        // --- TEMA ESCURO / CLARO ---
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                icon.className = 'fa-solid fa-sun text-amber-500';
+            } else {
+                html.classList.add('dark');
+                icon.className = 'fa-solid fa-moon';
+            }
         }
 
-        async function tocarCampainha() {
-            const btn = document.getElementById('btn-ring');
-            btn.disabled = true;
-            btn.innerText = "🔔 CHAMANDO...";
+        // --- TOAST NOTIFICATION ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bg = 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900';
+            let icon = 'fa-circle-info';
+            if (type === 'success') { bg = 'bg-emerald-600 text-white'; icon = 'fa-circle-check'; }
+            if (type === 'warning') { bg = 'bg-amber-600 text-white'; icon = 'fa-triangle-exclamation'; }
 
+            toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-xs font-semibold transform transition-all duration-300 translate-y-2 opacity-0 ${bg} pointer-events-auto`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-base"></i> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // --- SINTETIZADOR DE SOM DE INTERFONE (WEB AUDIO API) ---
+        function playAudioEffect(type) {
             try {
-                // Pega a câmera e o microfone do visitante imediatamente
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                
-                // Exibe o modal de chamada na rua
-                document.getElementById('call-overlay').classList.remove('hidden');
-                document.getElementById('call-status-text').innerText = "Chamando o morador... Aguarde.";
-                document.getElementById('visitor-actions').classList.remove('hidden');
-                document.getElementById('home-actions').classList.add('hidden');
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
 
-                // Faz a chamada de vídeo P2P para o ID da casa
-                const call = peer.call(window.targetHomeId, localStream);
-                currentCall = call;
-
-                // Quando o morador atender, ele mandará o stream de volta (a câmera de casa só aparece agora)
-                call.on('stream', (homeStream) => {
-                    document.getElementById('call-status-text').innerText = "🟢 Chamada Atendida!";
-                    const remoteVideo = document.getElementById('remote-video');
-                    remoteVideo.srcObject = homeStream; // Agora o visitante vê a casa
-                });
-
-                call.on('close', () => {
-                    fecharTudoUI();
-                    alert("A chamada foi encerrada.");
-                });
-
-            } catch (err) {
-                alert("Erro ao acessar a câmera. Permissão negada ou indisponível.");
-                btn.disabled = false;
-                btn.innerText = "🔔 TOCAR CAMPAINHA";
-            }
+                if (type === 'ringtone') {
+                    // Som de campainha de interfone
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, ctx.currentTime); // Nota A5
+                    osc.frequency.setValueAtTime(698.46, ctx.currentTime + 0.2); // Nota F5
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.6);
+                } else if (type === 'gate') {
+                    // Som de fecho magnético abrindo
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(440, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.4);
+                }
+            } catch(e) { console.log('Audio Context indisponível', e); }
         }
 
-        // --- 3. AÇÕES DE ATENDIMENTO NA CASA ---
-        async function atenderChamada() {
-            pararAlarmeSonoro();
-            document.getElementById('call-status-text').innerText = "🟢 Conectado com o Visitante";
-            document.getElementById('home-actions').classList.add('hidden');
+        // --- SIMULADOR DE INTERFONE DE VÍDEO ---
+        function simularChamadaEntrada() {
+            switchTab('intercom');
+            playAudioEffect('ringtone');
 
-            try {
-                // Pega a câmera de quem está em casa
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                
-                // Mostra o vídeo de quem está em casa no quadradinho flutuante (conforme solicitado: o de casa não aparece até atender)
-                const localVideo = document.getElementById('local-video-preview');
-                localVideo.srcObject = localStream;
-                localVideo.classList.remove('hidden');
+            const visitantesMock = [
+                { nome: 'Entregador iFood (Marcos)', sub: 'Aguardando no portão de pedestres' },
+                { nome: 'Motorista Uber Flash', sub: 'Trouxe uma encomenda rápida' },
+                { nome: 'Técnico de Internet', sub: 'Visita agendada de manutenção' },
+                { nome: 'Visitante: Roberto Alves', sub: 'Interfonando para Apt 402' }
+            ];
+            const sorteado = visitantesMock[Math.floor(Math.random() * visitantesMock.length)];
 
-                // Responde à chamada enviando o stream de casa para o visitante
-                currentCall.answer(localStream);
+            document.getElementById('visitor-title').innerText = sorteado.nome;
+            document.getElementById('visitor-subtitle').innerText = sorteado.sub;
+            document.getElementById('intercom-status-pill').innerText = 'Chamada Recebida!';
+            document.getElementById('intercom-status-pill').className = 'px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 animate-pulse';
 
-            } catch (err) {
-                alert("Erro ao abrir a câmera da casa.");
-                recusarChamada();
-            }
+            iniciarCronometroChamada();
+            showToast(`Atendendo interfone: ${sorteado.nome}`, 'success');
+
+            // Adicionar ao Histórico
+            logEvent(`Atendimento Interfone: ${sorteado.nome}`, 'Interfone', 'Atendido', 'fa-phone-volume');
         }
 
-        function recusarChamada() {
-            pararAlarmeSonoro();
-            if (currentCall) currentCall.close();
-            fecharTudoUI();
+        function iniciarCronometroChamada() {
+            isCallActive = true;
+            callSeconds = 0;
+            document.getElementById('call-overlay').classList.remove('hidden');
+            document.getElementById('btn-hangup').disabled = false;
+            document.getElementById('btn-hangup').classList.remove('opacity-50', 'cursor-not-allowed');
+
+            clearInterval(callInterval);
+            callInterval = setInterval(() => {
+                callSeconds++;
+                const min = String(Math.floor(callSeconds / 60)).padStart(2, '0');
+                const sec = String(callSeconds % 60).padStart(2, '0');
+                document.getElementById('call-timer').innerText = `${min}:${sec}`;
+            }, 1000);
         }
 
         function encerrarChamada() {
-            if (currentCall) currentCall.close();
-            fecharTudoUI();
-            location.reload();
+            clearInterval(callInterval);
+            isCallActive = false;
+            document.getElementById('call-overlay').classList.add('hidden');
+            document.getElementById('intercom-status-pill').innerText = 'Standby';
+            document.getElementById('intercom-status-pill').className = 'px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300';
+            
+            document.getElementById('visitor-title').innerText = 'Portaria Principal sem chamadas no momento';
+            document.getElementById('visitor-subtitle').innerText = 'Clique para simular novo visitante ou acionar a câmera.';
+            
+            document.getElementById('btn-hangup').disabled = true;
+            document.getElementById('btn-hangup').classList.add('opacity-50', 'cursor-not-allowed');
+            showToast('Chamada encerrada');
         }
 
-        function fecharTudoUI() {
-            pararAlarmeSonoro();
-            document.getElementById('call-overlay').classList.add('hidden');
-            document.getElementById('local-video-preview').classList.add('hidden');
-            
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
+        // --- SINTETIZADOR DE VOZ PARA RESPOSTA RÁPIDA (SPEECH SYNTHESIS) ---
+        function falarRespostaRapida(texto) {
+            playAudioEffect('ringtone');
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(texto);
+                utterance.lang = 'pt-BR';
+                utterance.rate = 1.0;
+                window.speechSynthesis.speak(utterance);
             }
-            if (!isHome) {
-                const btn = document.getElementById('btn-ring');
-                if(btn) {
-                    btn.disabled = false;
-                    btn.innerText = "🔔 TOCAR CAMPAINHA";
+            showToast(`Voz falada no alto-falante: "${texto}"`, 'info');
+            logEvent(`Resposta por Voz: "${texto}"`, 'Alto-Falante', 'Enviado', 'fa-volume-high');
+        }
+
+        // --- ABRIR PORTÃO / DESTRAVAR FECHO ---
+        function destravarPortaoSemChamada() {
+            playAudioEffect('gate');
+            const gateOverlay = document.getElementById('gate-overlay');
+            gateOverlay.classList.remove('hidden');
+
+            showToast('Sinal enviado: Portão Principal Destravado!', 'success');
+            logEvent('Fechadura Eletrônica Acionada', 'Controle Remoto', 'Liberado', 'fa-key');
+
+            setTimeout(() => {
+                gateOverlay.classList.add('hidden');
+            }, 3000);
+        }
+
+        // --- CONTROLE DE WEBCAM AO VIVO ---
+        async function toggleCamStream() {
+            const videoEl = document.getElementById('intercom-video');
+            const placeholderEl = document.getElementById('video-placeholder');
+
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+                videoEl.classList.add('hidden');
+                placeholderEl.classList.remove('hidden');
+                showToast('Câmera desativada');
+            } else {
+                try {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    videoEl.srcObject = mediaStream;
+                    videoEl.classList.remove('hidden');
+                    placeholderEl.classList.add('hidden');
+                    showToast('Câmera local conectada em tempo real', 'success');
+                } catch (err) {
+                    showToast('Câmera física não encontrada. Ativando simulador gráfico.', 'warning');
                 }
             }
         }
 
-        // --- ALARME SONORO CONTÍNUO (BIP DE CAMPAINHA) ---
-        function tocarAlarmeSonoro() {
-            if (ringInterval) return;
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            ringInterval = setInterval(() => {
-                if(audioCtx.state === 'suspended') audioCtx.resume();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // Nota D5
-                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.25); // Nota A5
-                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.5);
-            }, 900);
+        // --- MÓDULO GERADOR DE QR CODE ---
+        function gerarNovoQRCode(e) {
+            e.preventDefault();
+            const name = document.getElementById('qr-visitor-name').value.trim();
+            const type = document.getElementById('qr-access-type').value;
+            const hours = document.getElementById('qr-validity').value;
+
+            if (!name) return;
+
+            const code = 'DVR-' + Math.floor(1000 + Math.random() * 9000);
+            const newPass = {
+                id: code,
+                visitor: name,
+                type: type,
+                expires: `${hours}h`,
+                active: true,
+                created: new Date().toLocaleTimeString()
+            };
+
+            appData.qrPasses.unshift(newPass);
+            saveToStorage();
+
+            // Renderizar Imagem QR Code
+            const target = document.getElementById('qrcode-canvas-target');
+            target.innerHTML = '';
+            new QRCode(target, {
+                text: `DOORVI-ACCESS:${code}:${name}`,
+                width: 140,
+                height: 140
+            });
+
+            document.getElementById('qr-preview-name').innerText = `${name} (${type})`;
+            document.getElementById('qr-preview-code').innerText = `Código: ${code} • Validade ${hours}h`;
+            document.getElementById('qr-result-box').classList.remove('hidden');
+            document.getElementById('qr-result-box').classList.add('flex');
+
+            showToast(`Passe gerado com sucesso para ${name}`, 'success');
+            logEvent(`Passe QR Criado para ${name}`, 'QR Code', 'Gerado', 'fa-qrcode');
+            document.getElementById('form-qr').reset();
         }
 
-        function pararAlarmeSonoro() {
-            if (ringInterval) {
-                clearInterval(ringInterval);
-                ringInterval = null;
+        function copiarCodigoPasse() {
+            const codeText = document.getElementById('qr-preview-code').innerText;
+            const tempInput = document.createElement('input');
+            tempInput.value = codeText;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast('Código copiado para a área de transferência!');
+        }
+
+        function validarCodigoQRDia() {
+            const input = document.getElementById('scan-input-code').value.trim().toUpperCase();
+            if (!input) return;
+
+            const pass = appData.qrPasses.find(p => p.id === input);
+            if (pass && pass.active) {
+                destravarPortaoSemChamada();
+                showToast(`Passe VÁLIDO! Entrada de ${pass.visitor} autorizada.`, 'success');
+                logEvent(`Entrada Autorizada via QR: ${pass.visitor}`, 'QR Code Totem', 'Validade OK', 'fa-circle-check');
+            } else {
+                showToast(`Passe ${input} inválido ou expirado.`, 'warning');
+                logEvent(`Tentativa de Acesso Inválida QR (${input})`, 'QR Code Totem', 'Negado', 'fa-triangle-exclamation');
             }
+            document.getElementById('scan-input-code').value = '';
+        }
+
+        // --- MÓDULO DE ENCOMENDAS ---
+        function abrirModalNovaEncomenda() {
+            document.getElementById('modal-delivery').classList.remove('hidden');
+        }
+
+        function fecharModalNovaEncomenda() {
+            document.getElementById('modal-delivery').classList.add('hidden');
+        }
+
+        function salvarNovaEncomenda(e) {
+            e.preventDefault();
+            const carrier = document.getElementById('delivery-carrier').value.trim();
+            const code = document.getElementById('delivery-code').value.trim();
+            const desc = document.getElementById('delivery-desc').value.trim();
+
+            const newDeliv = {
+                id: Date.now().toString(),
+                carrier,
+                code,
+                desc: desc || 'Pacote Padrão',
+                status: 'Aguardando Retirada',
+                date: `Hoje ${new Date().toLocaleTimeString().slice(0,5)}`
+            };
+
+            appData.deliveries.unshift(newDeliv);
+            saveToStorage();
+            fecharModalNovaEncomenda();
+            showToast(`Nova encomenda ${carrier} cadastrada!`, 'success');
+            logEvent(`Nova Encomenda: ${carrier} (${code})`, 'Encomendas', 'Aguardando', 'fa-box');
+        }
+
+        function darBaixaEncomenda(id) {
+            const item = appData.deliveries.find(d => d.id === id);
+            if (item) {
+                item.status = 'Entregue';
+                saveToStorage();
+                showToast(`Encomenda ${item.carrier} entregue ao morador!`, 'success');
+                logEvent(`Encomenda Retirada: ${item.carrier}`, 'Encomendas', 'Entregue', 'fa-circle-check');
+            }
+        }
+
+        // --- RENDERIZADORES DE UI ---
+        function renderAll() {
+            renderDashboard();
+            renderQRPasses();
+            renderDeliveries();
+            renderHistory();
+        }
+
+        function renderDashboard() {
+            const pending = appData.deliveries.filter(d => d.status === 'Aguardando Retirada').length;
+            const activeQr = appData.qrPasses.filter(q => q.active).length;
+
+            document.getElementById('badge-enc-count').innerText = pending;
+            document.getElementById('dash-enc-pending').innerText = `${pending} Pendentes`;
+
+            document.getElementById('badge-qr-count').innerText = activeQr;
+            document.getElementById('dash-qr-active').innerText = `${activeQr} Ativos`;
+
+            document.getElementById('dash-access-today').innerText = `${appData.history.length} Eventos`;
+
+            // Atividades recentes dashboard
+            const recentBox = document.getElementById('home-recent-activity');
+            recentBox.innerHTML = '';
+
+            appData.history.slice(0, 3).forEach(item => {
+                recentBox.innerHTML += `
+                    <div class="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-brand-100 dark:bg-brand-900/50 text-brand-600 dark:text-brand-300 flex items-center justify-center text-xs">
+                                <i class="fa-solid ${item.icon || 'fa-bell'}"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold">${item.title}</p>
+                                <p class="text-[10px] text-gray-500 dark:text-gray-400">${item.type} • ${item.time}</p>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">${item.status}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function renderQRPasses() {
+            const list = document.getElementById('active-qr-list');
+            list.innerHTML = '';
+
+            appData.qrPasses.forEach(pass => {
+                list.innerHTML += `
+                    <div class="p-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700/60 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold">${pass.visitor}</p>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">Código: <span class="font-mono text-brand-600 dark:text-brand-400 font-bold">${pass.id}</span> • Expira: ${pass.expires}</p>
+                        </div>
+                        <button onclick="simularUsoQR('${pass.id}')" class="text-xs px-2 py-1 bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300 rounded font-semibold hover:bg-brand-200 transition">
+                            Usar
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        function simularUsoQR(code) {
+            document.getElementById('scan-input-code').value = code;
+            validarCodigoQRDia();
+        }
+
+        function renderDeliveries() {
+            const container = document.getElementById('deliveries-list');
+            container.innerHTML = '';
+
+            if (appData.deliveries.length === 0) {
+                container.innerHTML = `<p class="text-xs text-gray-500 col-span-2 text-center py-6">Nenhuma encomenda registrada.</p>`;
+                return;
+            }
+
+            appData.deliveries.forEach(deliv => {
+                const isPending = deliv.status === 'Aguardando Retirada';
+                container.innerHTML += `
+                    <div class="p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/40 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl ${isPending ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400'} flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-box-open"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h4 class="text-xs font-bold">${deliv.carrier}</h4>
+                                    <span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700">${deliv.code}</span>
+                                </div>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">${deliv.desc}</p>
+                                <p class="text-[10px] text-gray-400 mt-1"><i class="fa-regular fa-clock"></i> ${deliv.date}</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            ${isPending ? `
+                                <button onclick="darBaixaEncomenda('${deliv.id}')" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-xl shadow transition">
+                                    Dar Baixa
+                                </button>
+                            ` : `
+                                <span class="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                                    <i class="fa-solid fa-check"></i> Retirado
+                                </span>
+                            `}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderHistory() {
+            const tbody = document.getElementById('history-table-body');
+            tbody.innerHTML = '';
+
+            appData.history.forEach(log => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/30">
+                        <td class="p-3 font-medium text-gray-500 whitespace-nowrap">${log.time}</td>
+                        <td class="p-3 font-semibold">${log.title}</td>
+                        <td class="p-3 text-gray-500">${log.type}</td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">
+                                ${log.status}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function logEvent(title, type, status, icon = 'fa-bell') {
+            const newLog = {
+                time: `Hoje ${new Date().toLocaleTimeString().slice(0,5)}`,
+                title,
+                type,
+                status,
+                icon
+            };
+            appData.history.unshift(newLog);
+            saveToStorage();
+        }
+
+        function limparHistorico() {
+            appData.history = [];
+            saveToStorage();
+            showToast('Histórico limpo com sucesso');
         }
     </script>
 </body>
 </html>
+```
