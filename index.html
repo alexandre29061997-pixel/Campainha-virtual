@@ -57,6 +57,27 @@
             50% { transform: scale(1.1); opacity: 0.4; }
             100% { transform: scale(0.95); opacity: 0.8; }
         }
+
+        /* Regras de Impressão para a Placa do QR Code Fixo do Portão */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white !important;
+                color: black !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-darkbg text-gray-800 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
@@ -72,12 +93,14 @@
                     <h1 class="font-bold text-lg leading-tight flex items-center gap-2">
                         Doorvi <span class="text-xs font-semibold px-2 py-0.5 rounded bg-brand-100 text-brand-700 dark:bg-brand-900/50 dark:text-brand-300">Portaria 24h</span>
                     </h1>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Residencial Bela Vista • Apt 402</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400" id="header-residence-subtitle">Residencial Bela Vista • Apt 402</p>
                 </div>
             </div>
 
             <div class="flex items-center space-x-2">
-                <!-- Botão Simular Chamada -->
+                <button onclick="abrirSimuladorVisitante()" class="bg-gradient-to-r from-indigo-500 to-brand-600 hover:from-indigo-600 hover:to-brand-700 text-white text-xs font-semibold px-3 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5">
+                    <i class="fa-solid fa-mobile-screen"></i> <span class="hidden sm:inline">Simular</span> Visitante
+                </button>
                 <button onclick="simularChamadaEntrada()" class="hidden sm:flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-semibold px-3 py-2 rounded-xl transition shadow-sm">
                     <i class="fa-solid fa-phone-volume animate-bounce"></i> Testar Interfone
                 </button>
@@ -109,20 +132,42 @@
                         </span>
                         <span class="text-xs text-white/80" id="current-clock">00:00:00</span>
                     </div>
-                    <h2 class="text-2xl font-bold mb-1">Bem-vindo, Morador!</h2>
-                    <p class="text-indigo-100 text-sm max-w-md">Gerencie acessos, responda ao interfone de forma inteligente e acompanhe suas encomendas.</p>
+                    <h2 class="text-2xl font-bold mb-1">Doorvi - Interfone Sem Fio QR</h2>
+                    <p class="text-indigo-100 text-sm max-w-md">Seu portão equipado com QR Code Fixo Inteligente. O visitante escaneia no celular e interfona para você de qualquer lugar!</p>
                     
                     <div class="mt-4 pt-4 border-t border-white/20 flex flex-wrap gap-2">
-                        <button onclick="simularChamadaEntrada()" class="sm:hidden bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow">
-                            <i class="fa-solid fa-phone-volume"></i> Simular Interfone
+                        <button onclick="switchTab('qr')" class="bg-white text-brand-700 hover:bg-indigo-50 text-xs font-bold px-3.5 py-2 rounded-xl shadow flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-qrcode"></i> Meu QR Code Fixo do Portão
                         </button>
-                        <button onclick="switchTab('qr')" class="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5">
-                            <i class="fa-solid fa-qrcode"></i> Criar Passe QR
+                        <button onclick="abrirSimuladorVisitante()" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-1.5">
+                            <i class="fa-solid fa-mobile-screen"></i> Simular Visão do Visitante
                         </button>
-                        <button onclick="destravarPortaoSemChamada()" class="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5">
-                            <i class="fa-solid fa-key"></i> Abrir Portão Principal
+                        <button onclick="destravarPortaoSemChamada()" class="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white text-xs font-medium px-3 py-2 rounded-xl flex items-center gap-1.5">
+                            <i class="fa-solid fa-key"></i> Abrir Portão
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Card Destaque: QR Code Fixo do Imóvel -->
+            <div class="bg-white dark:bg-darkcard border border-brand-200 dark:border-brand-900/50 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 bg-brand-50 dark:bg-brand-900/40 rounded-xl flex items-center justify-center p-2 border border-brand-200 dark:border-brand-800 shrink-0">
+                        <div id="dash-fixed-qr-mini" class="w-full h-full flex items-center justify-center"></div>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wider">Interfone Fixo do Portão</span>
+                        <h3 class="font-bold text-base" id="dash-residence-title">Residencial Bela Vista - Apt 402</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Placa QR permanente pronta para afixar no portão principal.</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 w-full md:w-auto">
+                    <button onclick="abrirModalImprimirPlaca()" class="flex-1 md:flex-none text-xs bg-brand-600 hover:bg-brand-700 text-white font-semibold px-3.5 py-2.5 rounded-xl shadow transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-print"></i> Imprimir Placa
+                    </button>
+                    <button onclick="switchTab('qr')" class="flex-1 md:flex-none text-xs bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 px-3.5 py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-gear"></i> Configurar
+                    </button>
                 </div>
             </div>
 
@@ -171,107 +216,107 @@
                     <h3 class="font-bold text-base flex items-center gap-2">
                         <i class="fa-solid fa-bolt text-brand-500"></i> Últimas Atividades
                     </h3>
-                    <button onclick="switchTab('history')" class="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline">Ver Histórico</button>
-                </div>
-                <div id="home-recent-activity" class="space-y-3">
-                    <!-- Preenchido via JS -->
-                </div>
-            </div>
-        </section>
-
-        <!-- ABA 2: INTERFONE DE VÍDEO & ATENDIMENTO INTELIGENTE -->
-        <section id="tab-intercom" class="tab-content hidden space-y-6">
-            <div class="bg-white dark:bg-darkcard rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 class="text-lg font-bold">Interfone & Câmera ao Vivo</h2>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Painel de atendimento virtual com vídeo/áudio bidirecional</p>
-                    </div>
-                    <span id="intercom-status-pill" class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
-                        Standby
-                    </span>
-                </div>
-
-                <!-- Feed do Vídeo (Câmera do Dispositivo ou Simulador) -->
-                <div class="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-inner border border-gray-800 flex items-center justify-center group">
-                    <video id="intercom-video" class="w-full h-full object-cover hidden" autoplay playsinline muted></video>
-
-                    <!-- Tela Visual de Chamada / Espera Simulada -->
-                    <div id="video-placeholder" class="text-center p-6 flex flex-col items-center justify-center">
-                        <div class="w-20 h-20 rounded-full bg-brand-900/40 border border-brand-500/30 flex items-center justify-center text-brand-400 text-3xl mb-3 pulse-ring">
-                            <i class="fa-solid fa-user-gear"></i>
-                        </div>
-                        <h4 class="font-bold text-gray-200 text-base" id="visitor-title">Portaria Principal sem chamadas no momento</h4>
-                        <p class="text-xs text-gray-400 max-w-xs mt-1" id="visitor-subtitle">Clique abaixo para ativar sua câmera ou simular um visitante na porta.</p>
-                    </div>
-
-                    <!-- Overlay de Chamada Ativa / Cronômetro -->
-                    <div id="call-overlay" class="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-white text-xs font-semibold hidden flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
-                        <span id="call-timer">00:00</span>
-                    </div>
-
-                    <!-- Overlay de Gate Status -->
-                    <div id="gate-overlay" class="absolute inset-0 bg-emerald-950/80 backdrop-blur-sm hidden flex flex-col items-center justify-center text-emerald-400 font-bold transition">
-                        <i class="fa-solid fa-lock-open text-6xl animate-bounce mb-3"></i>
-                        <span class="text-xl">Portão Principal Destravado!</span>
-                        <span class="text-xs text-emerald-300 font-normal mt-1">Acesso liberado temporariamente</span>
-                    </div>
-                </div>
-
-                <!-- Painel de Controles da Chamada -->
-                <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <button onclick="toggleCamStream()" id="btn-toggle-cam" class="p-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl text-xs font-semibold flex flex-col items-center justify-center gap-1.5 transition">
-                        <i class="fa-solid fa-camera text-base text-indigo-500"></i> Minha Câmera
-                    </button>
-                    <button onclick="simularChamadaEntrada()" class="p-3 bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/30 dark:hover:bg-brand-900/50 rounded-xl text-xs font-semibold text-brand-600 dark:text-brand-300 flex flex-col items-center justify-center gap-1.5 transition">
-                        <i class="fa-solid fa-phone-arrow-down-left text-base text-brand-500"></i> Simular Visitante
-                    </button>
-                    <button onclick="destravarPortaoSemChamada()" class="p-3 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 rounded-xl text-xs font-semibold text-emerald-600 dark:text-emerald-300 flex flex-col items-center justify-center gap-1.5 transition">
-                        <i class="fa-solid fa-key text-base text-emerald-500"></i> Abrir Portão
-                    </button>
-                    <button onclick="encerrarChamada()" id="btn-hangup" class="p-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-300 flex flex-col items-center justify-center gap-1.5 transition opacity-50 cursor-not-allowed" disabled>
-                        <i class="fa-solid fa-phone-slash text-base text-rose-500"></i> Encerrar Chamada
-                    </button>
-                </div>
-
-                <!-- Módulo Respostas Rápidas (Voz Inteligente TTS) -->
-                <div class="mt-6 border-t border-gray-200 dark:border-gray-800 pt-4">
-                    <h3 class="text-sm font-bold mb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-comment-dots text-brand-500"></i> Respostas Rápidas com Alto-Falante (Voz AI)
-                    </h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Toque para que a portaria reproduza uma resposta de voz clara para o visitante:</p>
-                    
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <button onclick="falarRespostaRapida('Pode deixar a encomenda na portaria, obrigado!')" class="p-3 bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-800 text-left rounded-xl border border-gray-200 dark:border-gray-700/60 transition flex items-center justify-between group">
-                            <span class="text-xs font-medium">📦 "Pode deixar na portaria, obrigado!"</span>
-                            <i class="fa-solid fa-volume-high text-xs text-gray-400 group-hover:text-brand-500"></i>
-                        </button>
-                        <button onclick="falarRespostaRapida('Estou descendo para te atender, só um momento!')" class="p-3 bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-800 text-left rounded-xl border border-gray-200 dark:border-gray-700/60 transition flex items-center justify-between group">
-                            <span class="text-xs font-medium">🚶 "Já estou descendo, só um instante!"</span>
-                            <i class="fa-solid fa-volume-high text-xs text-gray-400 group-hover:text-brand-500"></i>
-                        </button>
-                        <button onclick="falarRespostaRapida('Não estou em casa no momento. Favor retornar mais tarde.')" class="p-3 bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-800 text-left rounded-xl border border-gray-200 dark:border-gray-700/60 transition flex items-center justify-between group">
-                            <span class="text-xs font-medium">🏠 "Não estou em casa agora."</span>
-                            <i class="fa-solid fa-volume-high text-xs text-gray-400 group-hover:text-brand-500"></i>
-                        </button>
-                        <button onclick="falarRespostaRapida('Acesso liberado. Pode subir até o apartamento!')" class="p-3 bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-800 text-left rounded-xl border border-gray-200 dark:border-gray-700/60 transition flex items-center justify-between group">
-                            <span class="text-xs font-medium">🔓 "Portão aberto, pode subir!"</span>
-                            <i class="fa-solid fa-volume-high text-xs text-gray-400 group-hover:text-brand-500"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ABA 3: GERADOR & LEITOR DE QR CODE DE VISITANTE -->
+        <!-- ABA 3: QR CODE FIXO DO IMÓVEL & PASSES TEMPORÁRIOS -->
         <section id="tab-qr" class="tab-content hidden space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Emissão de Novo Passe -->
+            
+            <!-- BLUDO DESTAQUE 1: QR CODE FIXO DO PORTÃO / RESIDÊNCIA (DOORVI CORE) -->
+            <div class="bg-gradient-to-br from-white to-brand-50/50 dark:from-darkcard dark:to-brand-900/20 rounded-2xl border border-brand-200 dark:border-brand-900/60 p-5 shadow-sm">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-200 dark:border-gray-800">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-brand-600 text-white">Funcionalidade Principal Doorvi</span>
+                            <span class="text-xs text-emerald-600 dark:text-emerald-400 font-semibold"><i class="fa-solid fa-check-circle"></i> Fixo & Permanente</span>
+                        </div>
+                        <h2 class="text-xl font-bold">QR Code Fixo da Residência / Portão</h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Instale este QR Code na entrada do seu imóvel. Qualquer visitante pode escanear com a câmera do celular para acionar sua campainha com áudio e vídeo em tempo real.</p>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="abrirSimuladorVisitante()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl shadow transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-mobile-screen"></i> Simular Visão do Visitante
+                        </button>
+                        <button onclick="abrirModalImprimirPlaca()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl shadow transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-print"></i> Imprimir Placa do Portão
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-5">
+                    <!-- Visualizador do QR Code Fixo da Casa -->
+                    <div class="bg-white dark:bg-gray-800/80 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/60 flex flex-col items-center justify-center text-center shadow-sm">
+                        <div class="p-3 bg-white rounded-2xl shadow-md border border-gray-100 mb-3" id="fixed-qr-canvas-container"></div>
+                        <h4 class="font-bold text-sm text-gray-800 dark:text-gray-100" id="qr-fixed-display-name">Residencial Bela Vista</h4>
+                        <p class="text-xs font-semibold text-brand-600 dark:text-brand-400" id="qr-fixed-display-apt">Apt 402 - Bloco A</p>
+                        <p class="text-[11px] text-gray-400 font-mono mt-1" id="qr-fixed-display-id">ID: DVR-402-BELA-VISTA</p>
+                        
+                        <div class="flex items-center gap-2 mt-4 w-full">
+                            <button onclick="copiarLinkInterfoneFixo()" class="flex-1 py-2 px-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-xs font-semibold rounded-xl transition flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-link text-brand-500"></i> Copiar Link
+                            </button>
+                            <button onclick="baixarQRCodeFixoSVG()" class="flex-1 py-2 px-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-xs font-semibold rounded-xl transition flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-download text-emerald-500"></i> Baixar Imagem
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Formulário de Personalização do Imóvel -->
+                    <div class="md:col-span-2 bg-white dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-800 flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold mb-1 flex items-center gap-2">
+                                <i class="fa-solid fa-sliders text-brand-500"></i> Personalizar Dados da Placa do Portão
+                            </h3>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Ajuste os dados apresentados na tela do visitante ao escanear a placa física.</p>
+
+                            <form id="form-fixed-qr" onsubmit="salvarConfigQRCodeFixo(event)" class="space-y-3">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold mb-1">Nome do Condomínio / Casa</label>
+                                        <input type="text" id="fixed-condo-name" required value="Residencial Bela Vista" class="w-full text-xs p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold mb-1">Número do Apt / Casa / Bloco</label>
+                                        <input type="text" id="fixed-apt-number" required value="Apt 402 - Bloco A" class="w-full text-xs p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-semibold mb-1">Mensagem de Boas-Vindas ao Visitante</label>
+                                    <input type="text" id="fixed-welcome-msg" value="Olá! Por favor, toque a campainha para interfonar ou deixe sua encomenda." class="w-full text-xs p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold mb-1">Ação Padrão do Interfone</label>
+                                        <select id="fixed-default-action" class="w-full text-xs p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                                            <option value="video">Chamada com Vídeo e Áudio</option>
+                                            <option value="audio">Apenas Chamada de Áudio</option>
+                                            <option value="notify">Apenas Notificação Silenciosa</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold mb-1">ID Único do Ponto</label>
+                                        <input type="text" id="fixed-point-id" readonly value="DVR-402-BELA-VISTA" class="w-full text-xs p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-700/50 text-gray-500 font-mono">
+                                    </div>
+                                </div>
+
+                                <div class="pt-2 flex justify-end">
+                                    <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition flex items-center gap-1.5">
+                                        <i class="fa-solid fa-floppy-disk"></i> Salvar e Atualizar Placa
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEÇÃO 2: EMISSÃO DE PASSES TEMPORÁRIOS & VALIDADOR DE VISITANTE -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                <!-- Emissão de Novo Passe Temporário -->
                 <div class="bg-white dark:bg-darkcard rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm flex flex-col justify-between">
                     <div>
-                        <h2 class="text-lg font-bold mb-1">Gerar Passe QR Temporário</h2>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Envie um convite em QR Code seguro para seu visitante ou prestador de serviço.</p>
+                        <h2 class="text-base font-bold mb-1">Gerar Passe QR Temporário</h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Envie um convite individual temporário para seu visitante ou prestador de serviço.</p>
 
                         <form id="form-qr" onsubmit="gerarNovoQRCode(event)" class="space-y-4">
                             <div>
@@ -301,7 +346,7 @@
                             </div>
 
                             <button type="submit" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-qrcode"></i> Gerar QR Code
+                                <i class="fa-solid fa-qrcode"></i> Gerar Passe Temporário
                             </button>
                         </form>
                     </div>
@@ -321,7 +366,7 @@
                 <!-- Leitor / Verificador de QR Code -->
                 <div class="bg-white dark:bg-darkcard rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm flex flex-col justify-between">
                     <div>
-                        <h2 class="text-lg font-bold mb-1">Validar Passe de Entrada</h2>
+                        <h2 class="text-base font-bold mb-1">Validar Passe de Entrada</h2>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Simule a leitura na totem da portaria inserindo ou escaneando o passe.</p>
 
                         <div class="space-y-4">
@@ -427,6 +472,117 @@
         </div>
     </div>
 
+    <!-- MODAL 2: SIMULADOR DA VISÃO DO VISITANTE NO CELULAR (AO ESCANEAR O QR CODE FIXO) -->
+    <div id="modal-visitor-sim" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="w-full max-w-sm bg-gray-900 rounded-[32px] p-4 border-4 border-gray-800 shadow-2xl relative text-white">
+            <!-- Notch Simulador Celular -->
+            <div class="w-28 h-4 bg-gray-800 rounded-b-xl mx-auto mb-3 flex items-center justify-center">
+                <div class="w-3 h-3 rounded-full bg-black"></div>
+            </div>
+
+            <button onclick="fecharSimuladorVisitante()" class="absolute top-4 right-4 text-gray-400 hover:text-white p-1">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <!-- Interface da WebApp do Visitante -->
+            <div class="bg-gray-800 rounded-2xl p-4 text-center border border-gray-700">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white text-xl mx-auto mb-2 shadow-lg">
+                    <i class="fa-solid fa-door-open"></i>
+                </div>
+                <span class="text-[10px] uppercase font-bold text-brand-400 tracking-wider">Interfone Digital Doorvi</span>
+                <h3 class="font-bold text-base" id="vis-sim-condo">Residencial Bela Vista</h3>
+                <p class="text-xs text-indigo-300 font-semibold" id="vis-sim-apt">Apt 402 - Bloco A</p>
+                <p class="text-[11px] text-gray-300 mt-2 italic px-2 py-1 bg-gray-900/60 rounded-lg" id="vis-sim-welcome">"Olá! Por favor, toque a campainha para interfonar ou deixe sua encomenda."</p>
+            </div>
+
+            <!-- Opções do Visitante -->
+            <div class="mt-4 space-y-2.5">
+                <button onclick="visitorAccaoTocarCampainha()" class="w-full p-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 rounded-xl text-xs font-bold flex items-center justify-between shadow-lg transition">
+                    <span class="flex items-center gap-2"><i class="fa-solid fa-video text-base"></i> Tocar Campainha em Vídeo</span>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-70"></i>
+                </button>
+
+                <button onclick="visitorAccaoDeixarEncomenda()" class="w-full p-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-xs font-semibold flex items-center justify-between transition">
+                    <span class="flex items-center gap-2"><i class="fa-solid fa-box text-amber-400 text-sm"></i> Sou Entregador / Deixar Pacote</span>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-50"></i>
+                </button>
+
+                <button onclick="visitorAccaoRecadoVoz()" class="w-full p-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-xs font-semibold flex items-center justify-between transition">
+                    <span class="flex items-center gap-2"><i class="fa-solid fa-comment-dots text-sky-400 text-sm"></i> Deixar Recado de Texto/Voz</span>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-50"></i>
+                </button>
+
+                <div class="pt-2 border-t border-gray-800">
+                    <label class="block text-[10px] text-gray-400 mb-1 font-semibold">Possui Passe QR ou Código?</label>
+                    <div class="flex gap-1.5">
+                        <input type="text" id="vis-input-pass" placeholder="Código Ex: DVR-7102" class="w-full text-xs p-2 rounded-lg bg-gray-800 border border-gray-700 text-white uppercase">
+                        <button onclick="visitorUsarPasseCodigo()" class="px-3 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition">
+                            Validar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 text-center">
+                <span class="text-[9px] text-gray-500">Doorvi Segurança Residencial • Conexão Segura 256-bit</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: IMPRESSÃO DA PLACA DO PORTÃO DO IMÓVEL (PRONTO PARA IMPRIMIR) -->
+    <div id="modal-fixed-qr-print" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-darkcard text-gray-900 dark:text-gray-100 w-full max-w-lg rounded-3xl p-6 border border-gray-200 dark:border-gray-800 shadow-2xl relative overflow-y-auto max-h-[90vh]">
+            <button onclick="fecharModalImprimirPlaca()" class="no-print absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-2">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+
+            <div class="no-print mb-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-3">
+                <div>
+                    <h3 class="font-bold text-base">Placa / Adesivo Oficial de Portão</h3>
+                    <p class="text-xs text-gray-500">Pronto para imprimir e colocar ao lado do portão ou campainha.</p>
+                </div>
+                <button onclick="window.print()" class="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow flex items-center gap-2">
+                    <i class="fa-solid fa-print"></i> Imprimir Placa
+                </button>
+            </div>
+
+            <!-- ÁREA IMPRIMÍVEL DA PLACA (PRINT TARGET) -->
+            <div id="print-area" class="border-4 border-indigo-600 rounded-3xl p-6 text-center bg-gradient-to-b from-indigo-900 to-slate-900 text-white shadow-2xl relative overflow-hidden">
+                <!-- Marca D'água Topo -->
+                <div class="flex items-center justify-center gap-2 mb-3">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white font-bold text-lg">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <span class="text-xl font-extrabold tracking-wider text-indigo-200">DOORVI</span>
+                </div>
+
+                <div class="bg-indigo-950/80 rounded-2xl p-3 border border-indigo-500/30 mb-4">
+                    <span class="text-[10px] uppercase font-bold text-indigo-300 tracking-widest">Residência / Ponto de Acesso</span>
+                    <h2 class="text-xl font-black text-white" id="print-condo-title">Residencial Bela Vista</h2>
+                    <h3 class="text-base font-bold text-indigo-300" id="print-apt-title">Apt 402 - Bloco A</h3>
+                </div>
+
+                <!-- QR CODE EM DESTAQUE -->
+                <div class="bg-white p-4 rounded-2xl inline-block shadow-2xl my-2 border-4 border-indigo-400">
+                    <div id="print-qrcode-target" class="flex justify-center"></div>
+                </div>
+
+                <!-- INSTRUÇÃO VISÍVEL AO VISITANTE -->
+                <div class="mt-4 space-y-1">
+                    <p class="text-sm font-black text-yellow-300 uppercase tracking-wide">
+                        <i class="fa-solid fa-camera"></i> ESCANEIE COM A CÂMERA DO CELULAR
+                    </p>
+                    <p class="text-xs font-semibold text-gray-200">Para tocar a campainha com áudio/vídeo ou deixar sua entrega.</p>
+                </div>
+
+                <div class="mt-5 pt-3 border-t border-indigo-800/80 flex items-center justify-between text-[10px] text-indigo-300">
+                    <span>Sem necessidade de aplicativo</span>
+                    <span class="font-mono" id="print-id-tag">ID: DVR-402-BELA-VISTA</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Navegação Inferior Fixa (Mobile Bottom Bar) -->
     <nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-darkcard/90 backdrop-blur-md border-t border-gray-200 dark:border-gray-800 z-30">
         <div class="max-w-4xl mx-auto flex justify-around py-2">
@@ -457,6 +613,13 @@
     <script>
         // --- ESTADO INICIAL DA APLICAÇÃO ---
         let appData = {
+            fixedQR: {
+                condoName: 'Residencial Bela Vista',
+                aptNumber: 'Apt 402 - Bloco A',
+                welcomeMsg: 'Olá! Por favor, toque a campainha para interfonar ou deixe sua encomenda.',
+                defaultAction: 'video',
+                pointId: 'DVR-402-BELA-VISTA'
+            },
             qrPasses: [
                 { id: 'DVR-7102', visitor: 'Luciana Souza (Amostra)', type: 'Familiar', expires: '24h', active: true, created: new Date().toLocaleTimeString() }
             ],
@@ -474,7 +637,6 @@
         let callInterval = null;
         let callSeconds = 0;
         let isCallActive = false;
-        let qrGeneratorInstance = null;
 
         // --- INICIALIZAÇÃO DO APP ---
         window.addEventListener('DOMContentLoaded', () => {
@@ -495,7 +657,8 @@
             const saved = localStorage.getItem('doorvi_app_data');
             if (saved) {
                 try {
-                    appData = JSON.parse(saved);
+                    const parsed = JSON.parse(saved);
+                    appData = { ...appData, ...parsed };
                 } catch(e) { console.error('Erro ao ler storage', e); }
             }
         }
@@ -503,6 +666,139 @@
         function saveToStorage() {
             localStorage.setItem('doorvi_app_data', JSON.stringify(appData));
             renderAll();
+        }
+
+        // --- MÓDULO QR CODE FIXO DA RESIDÊNCIA (DOORVI CORE) ---
+        function renderFixedQRCode() {
+            const cfg = appData.fixedQR;
+
+            // Atualizar textos da UI
+            document.getElementById('header-residence-subtitle').innerText = `${cfg.condoName} • ${cfg.aptNumber}`;
+            document.getElementById('dash-residence-title').innerText = `${cfg.condoName} - ${cfg.aptNumber}`;
+            document.getElementById('qr-fixed-display-name').innerText = cfg.condoName;
+            document.getElementById('qr-fixed-display-apt').innerText = cfg.aptNumber;
+            document.getElementById('qr-fixed-display-id').innerText = `ID: ${cfg.pointId}`;
+
+            // Preencher Formulário de Edição
+            document.getElementById('fixed-condo-name').value = cfg.condoName;
+            document.getElementById('fixed-apt-number').value = cfg.aptNumber;
+            document.getElementById('fixed-welcome-msg').value = cfg.welcomeMsg;
+            document.getElementById('fixed-default-action').value = cfg.defaultAction;
+            document.getElementById('fixed-point-id').value = cfg.pointId;
+
+            // URL única que seria gerada no ambiente Doorvi real
+            const targetUrl = `https://doorvi.app/call/${cfg.pointId}`;
+
+            // Renderizar QR Code no Painel Principal da Aba
+            const target = document.getElementById('fixed-qr-canvas-container');
+            target.innerHTML = '';
+            new QRCode(target, {
+                text: targetUrl,
+                width: 130,
+                height: 130
+            });
+
+            // Miniatura no Dashboard
+            const dashMini = document.getElementById('dash-fixed-qr-mini');
+            dashMini.innerHTML = '';
+            new QRCode(dashMini, {
+                text: targetUrl,
+                width: 52,
+                height: 52
+            });
+
+            // QR Code na Placa de Impressão
+            const printTarget = document.getElementById('print-qrcode-target');
+            if (printTarget) {
+                printTarget.innerHTML = '';
+                new QRCode(printTarget, {
+                    text: targetUrl,
+                    width: 180,
+                    height: 180
+                });
+            }
+
+            document.getElementById('print-condo-title').innerText = cfg.condoName;
+            document.getElementById('print-apt-title').innerText = cfg.aptNumber;
+            document.getElementById('print-id-tag').innerText = `ID: ${cfg.pointId}`;
+        }
+
+        function salvarConfigQRCodeFixo(e) {
+            e.preventDefault();
+            appData.fixedQR.condoName = document.getElementById('fixed-condo-name').value.trim();
+            appData.fixedQR.aptNumber = document.getElementById('fixed-apt-number').value.trim();
+            appData.fixedQR.welcomeMsg = document.getElementById('fixed-welcome-msg').value.trim();
+            appData.fixedQR.defaultAction = document.getElementById('fixed-default-action').value;
+
+            saveToStorage();
+            showToast('Configurações do QR Code Fixo do Imóvel salvas!', 'success');
+            logEvent('Placa do Portão Atualizada', 'Configurações', 'Salvo', 'fa-qrcode');
+        }
+
+        function copiarLinkInterfoneFixo() {
+            const link = `https://doorvi.app/call/${appData.fixedQR.pointId}`;
+            const temp = document.createElement('input');
+            temp.value = link;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+            showToast('Link direto do interfone copiado!');
+        }
+
+        function baixarQRCodeFixoSVG() {
+            showToast('Download da imagem do QR Code Fixo iniciado!', 'success');
+        }
+
+        function abrirModalImprimirPlaca() {
+            renderFixedQRCode();
+            document.getElementById('modal-fixed-qr-print').classList.remove('hidden');
+        }
+
+        function fecharModalImprimirPlaca() {
+            document.getElementById('modal-fixed-qr-print').classList.add('hidden');
+        }
+
+        // --- SIMULADOR "VISÃO DO VISITANTE" (ESCANEOU O QR CODE FIXO NO CELULAR) ---
+        function abrirSimuladorVisitante() {
+            const cfg = appData.fixedQR;
+            document.getElementById('vis-sim-condo').innerText = cfg.condoName;
+            document.getElementById('vis-sim-apt').innerText = cfg.aptNumber;
+            document.getElementById('vis-sim-welcome').innerText = `"${cfg.welcomeMsg}"`;
+            document.getElementById('modal-visitor-sim').classList.remove('hidden');
+        }
+
+        function fecharSimuladorVisitante() {
+            document.getElementById('modal-visitor-sim').classList.add('hidden');
+        }
+
+        function visitorAccaoTocarCampainha() {
+            fecharSimuladorVisitante();
+            simularChamadaEntrada();
+            showToast('Visitante no portão tocou a campainha pelo QR Code!', 'success');
+        }
+
+        function visitorAccaoDeixarEncomenda() {
+            fecharSimuladorVisitante();
+            abrirModalNovaEncomenda();
+            showToast('Entregador informando recebimento de pacote', 'warning');
+        }
+
+        function visitorAccaoRecadoVoz() {
+            fecharSimuladorVisitante();
+            falarRespostaRapida('Aviso recebido: O visitante deixou um recado na portaria.');
+            showToast('Recado registrado do visitante no portão', 'info');
+            logEvent('Recado de Visitante no Portão', 'QR Code Fixo', 'Recado', 'fa-comment');
+        }
+
+        function visitorUsarPasseCodigo() {
+            const code = document.getElementById('vis-input-pass').value.trim().toUpperCase();
+            if (!code) return;
+            
+            fecharSimuladorVisitante();
+            document.getElementById('scan-input-code').value = code;
+            switchTab('qr');
+            validarCodigoQRDia();
         }
 
         // --- NAVEGAÇÃO DE ABAS ---
@@ -815,6 +1111,7 @@
 
         // --- RENDERIZADORES DE UI ---
         function renderAll() {
+            renderFixedQRCode();
             renderDashboard();
             renderQRPasses();
             renderDeliveries();
